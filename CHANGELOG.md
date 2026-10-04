@@ -7,6 +7,8 @@
 - Expose read-only status and existing display/child-lock readings as entity attributes.
 - Include safe client error reasons in unavailable-state diagnostics and probe reports.
 - Test that the newly readable modes remain blocked by the command allowlist.
+- Verify live status on two US Vital Pet Pro units and one NeoClassic 450S after
+  installation and a Home Assistant 2026.9.4 restart, with read-only mode enabled.
 
 ## 0.1.1 — 2026-10-04
 
@@ -24,4 +26,5 @@
 - Add protocol tests and a Home Assistant 2026.9.4 import/entity smoke test in CI.
 - Withhold mist-level writes, lighting and scene/music features pending live verification.
 
-This is a development preview. Live-device behavior has not yet been verified.
+This is a development preview. Live status reads have been verified for the owned
+US models; device-setting commands and the Australian purifier variant remain untested.

@@ -34,7 +34,8 @@ between entering manual mode and selecting other presets.
 The candidate `_packFileSignature` algorithm and `_signOsInfo: Android` header
 are applied only to this integration's purifier Bypass V2 requests. Authentication
 and other integrations are unchanged. The signature is regenerated with each
-request and after a token refresh. Live verification is required.
+request and after a token refresh. Live status requests succeeded on two US units;
+write requests and live token-refresh behavior remain unverified.
 
 ## NeoClassic 450S
 
@@ -86,6 +87,11 @@ These exact values are now accepted by the status parser and preserved as the
 allowlists. The new status names are not offered as selectable modes and cannot
 be sent as mode commands. Their write semantics, and any mapping from an older
 `auto` command to the new modes, remain unverified.
+
+Version 0.1.2 subsequently loaded all three devices in Home Assistant 2026.9.4
+after a Core restart, with successful live status and read-only mode enabled.
+See the [validation record](VALIDATION.md) for the comparison limits. No control
+commands were issued during this verification.
 
 Unavailable-state diagnostics now retain the client-generated error reason.
 Those messages contain only fixed explanations and numeric HTTP/error codes;

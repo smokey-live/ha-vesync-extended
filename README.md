@@ -4,10 +4,12 @@ Experimental support for newer Levoit products that pyvesync 3.4.2 does not disc
 This custom integration has its own `vesync_extended` domain and can run alongside
 Home Assistant's official VeSync integration. It selects only the exact models below.
 
-**Status: development preview. Protocol tests use synthetic fixtures. Live-device
-verification is still pending. Read-only mode is enabled by default.**
+**Status: development preview. Version 0.1.2 has verified live status reads in
+Home Assistant 2026.9.4 for two `LAP-P501S-WUSR` purifiers and one `LUH-N451S-WUS`
+humidifier. Device-setting commands remain unverified. Read-only mode is enabled
+by default. Protocol tests use synthetic fixtures.**
 
-| Product | VeSync cloud identifier | Initial implementation |
+| Product | VeSync cloud identifier | Readings and candidate controls |
 | --- | --- | --- |
 | Vital Pet Pro air purifier | `LAP-P501S-WUSR`, `LAP-P501S-AUSR` | Power, three speeds, manual/auto/sleep/pet, PM2.5, filter life, display, child lock |
 | NeoClassic 450S cool-mist humidifier | `LUH-N451S-WUS` | Power, manual/auto/sleep, current and target humidity, display, mist-level reading |

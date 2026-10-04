@@ -42,13 +42,31 @@ Read-only discovery was performed on 2026-10-04 in Home Assistant 2026.9.4.
 Version 0.1.1 found all three target devices, but rejected their new `workMode`
 values. A temporary read-only probe confirmed successful response envelopes;
 0.1.2 adds the exact observed mode names without widening the write allowlist.
-Status parsing and installation of that correction are being verified separately.
+
+Version 0.1.2 was then installed through HACS. Home Assistant's configuration check
+passed, and after a Core restart all three devices were available with nine entities.
+The downloaded diagnostics confirmed version 0.1.2, read-only mode enabled, valid
+status for each device and no reported device errors. The separate official VeSync
+entry remains configured.
+
+Power, purifier filter life, display and child-lock readings, and humidifier current
+humidity/display were compared with the official app. The app showed Auto for both
+purifiers while the cloud returned `odorShieldBalanced`; that observation does not
+verify a writable alias. Home Assistant displayed the reported PM2.5, target
+humidity and virtual mist level, but those exact values were not independently
+confirmed in the app. The humidifier was off during this test. No device-setting
+commands were sent.
+
+The released code passed 41 protocol tests, Ruff checks, and the Home Assistant
+2026.9.4 compatibility smoke test in
+[CI](https://github.com/smokey-live/ha-vesync-extended/actions/runs/37233943162).
+These checks do not replace live control testing.
 
 | Model | Status | Control | Restart | Notes |
 | --- | --- | --- | --- | --- |
-| `LAP-P501S-WUSR` | Pending | Pending | Pending | Two owned units |
-| `LAP-P501S-AUSR` | Pending | Pending | Pending | No owned unit available |
-| `LUH-N451S-WUS` | Pending | Pending | Pending | Physical versus virtual mist levels unresolved |
+| `LAP-P501S-WUSR` | Passed on two units | Not tested | Passed | Both available after Core restart; new cloud mode preserved |
+| `LAP-P501S-AUSR` | Not tested | Not tested | Not tested | No owned unit available |
+| `LUH-N451S-WUS` | Passed while powered off | Not tested | Passed | Physical versus virtual mist levels unresolved; powered-on behavior untested |
 
 Do not publish credentials, tokens, names, MAC addresses, cloud IDs, home addresses,
 network captures or raw authentication/device-list responses. A reviewed summary
