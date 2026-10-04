@@ -7,6 +7,7 @@ import importlib
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -35,6 +36,7 @@ async def main():
         importlib.import_module(f"custom_components.vesync_extended.{module}")
 
     hass = HomeAssistant("/tmp/vesync-extended-test")
+    hass.config_entries = SimpleNamespace(async_entries=lambda domain: [])
     flow = VeSyncExtendedConfigFlow()
     flow.hass = hass
     form = await flow.async_step_user()
@@ -42,6 +44,42 @@ async def main():
     assert form["data_schema"]({"username": "test@example.invalid", "password": "test"})[
         "read_only"
     ]
+
+    saved = SimpleNamespace(
+        entry_id="saved-account",
+        title="Saved VeSync account",
+        data={"username": "test@example.invalid", "password": "synthetic-private-password"},
+    )
+    hass.config_entries = SimpleNamespace(async_entries=lambda domain: [saved])
+    menu = await flow.async_step_user()
+    assert menu["type"] == "menu" and menu["menu_options"] == ["existing_account", "manual"]
+    saved_form = await flow.async_step_existing_account()
+    assert "synthetic-private-password" not in repr(saved_form)
+    selection = saved_form["data_schema"]({})
+    assert selection["read_only"] and selection["account"] == saved.entry_id
+    with (
+        patch.object(flow, "_validate_account", AsyncMock(return_value={"base": "invalid_auth"})),
+        patch.object(flow, "_finish_account", AsyncMock()) as finish,
+    ):
+        rejected = await flow.async_step_existing_account(selection)
+        assert rejected["errors"] == {"base": "invalid_auth"}
+        assert "synthetic-private-password" not in repr(rejected)
+        finish.assert_not_awaited()
+    with (
+        patch.object(flow, "_validate_account", AsyncMock(return_value={})) as validate,
+        patch.object(
+            flow, "_finish_account", AsyncMock(return_value={"type": "create_entry"})
+        ) as finish,
+    ):
+        result = await flow.async_step_existing_account(selection)
+        assert result["type"] == "create_entry"
+        assert validate.await_args.args[0]["password"] == saved.data["password"]
+        assert finish.await_args.args[1]["read_only"]
+    stale = await flow.async_step_existing_account({**selection, "account": "missing-account"})
+    assert stale["errors"] == {"base": "existing_account_missing"}
+    hass.config_entries = SimpleNamespace(async_entries=lambda domain: [])
+    assert (await flow.async_step_existing_account())["reason"] == "no_existing_account"
+    assert (await flow.async_step_manual())["type"] == "form"
 
     device = Device("fake-purifier", "Test purifier", "LAP-P501S-WUSR", "fake", "US")
     humidifier = Device("fake-humidifier", "Test humidifier", "LUH-N451S-WUS", "fake", "US")
@@ -114,7 +152,10 @@ async def main():
         pass
     else:
         raise AssertionError("Expired authentication did not trigger reauthentication")
-    print("HA imports, config form, entity state, read-only, offline isolation, and reauth passed")
+    print(
+        "HA imports, saved-account privacy, entity state, read-only, "
+        "offline isolation, reauth passed"
+    )
 
 
 if __name__ == "__main__":

@@ -9,7 +9,9 @@ bounded authentication retry and refreshed credentials/signature headers.
 
 The Home Assistant smoke test runs against the official `2026.9.4` image. It imports
 all platforms, builds entities, checks feature flags and state conversion, and
-checks that read-only access cannot issue a device command. It does not contact VeSync.
+checks that read-only access cannot issue a device command. Saved-account setup is
+checked for credential reuse, no password in forms or error responses, and refusal
+of a removed account. It does not contact VeSync.
 
 Automated checks cannot establish that a device accepts a command. Record that
 evidence separately below after testing the owned devices.
@@ -45,4 +47,3 @@ evidence separately below after testing the owned devices.
 Do not publish credentials, tokens, names, MAC addresses, cloud IDs, home addresses,
 network captures or raw authentication/device-list responses. A reviewed summary
 of models, features, firmware versions and pass/fail outcomes is sufficient.
-

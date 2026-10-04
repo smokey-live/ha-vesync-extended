@@ -10,6 +10,10 @@
           "password": "Password",
           "country": "Country code",
           "read_only": "Read-only mode (recommended for the first test)"
+        },
+        "menu_options": {
+          "existing_account": "Use an existing VeSync account",
+          "manual": "Enter VeSync credentials"
         }
       },
       "reauth_confirm": {
@@ -21,17 +25,38 @@
           "country": "Country code",
           "read_only": "Read-only mode (recommended for the first test)"
         }
+      },
+      "manual": {
+        "title": "Connect your VeSync account",
+        "description": "Add Vital Pet Pro and NeoClassic 450S devices. Leave read-only mode enabled until live readings have been verified.",
+        "data": {
+          "username": "VeSync email",
+          "password": "Password",
+          "country": "Country code",
+          "read_only": "Read-only mode (recommended for the first test)"
+        }
+      },
+      "existing_account": {
+        "title": "Use an existing VeSync account",
+        "description": "Reuse the credentials saved by the official VeSync integration. Your password stays inside Home Assistant. Leave read-only mode enabled for the first test.",
+        "data": {
+          "account": "Existing VeSync account",
+          "country": "Country code",
+          "read_only": "Read-only mode (recommended for the first test)"
+        }
       }
     },
     "error": {
       "invalid_auth": "Could not authenticate with VeSync. Check your credentials.",
       "cannot_connect": "Could not connect to VeSync. Try again later.",
-      "no_devices": "No supported Vital Pet Pro or NeoClassic 450S devices were found on this account."
+      "no_devices": "No supported Vital Pet Pro or NeoClassic 450S devices were found on this account.",
+      "existing_account_missing": "The selected account was removed. Choose another account or enter credentials manually."
     },
     "abort": {
       "already_configured": "This account is already configured.",
       "reauth_successful": "The account was reconnected.",
-      "wrong_account": "Use the same account as the existing entry."
+      "wrong_account": "Use the same account as the existing entry.",
+      "no_existing_account": "No saved official VeSync account is available. Start again and enter credentials manually."
     }
   },
   "options": {

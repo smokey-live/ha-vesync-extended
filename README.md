@@ -31,8 +31,10 @@ later releases require their own validation. The integration depends on the same
    `custom_components` directory. Do not rename it to `vesync`.
 3. Restart Home Assistant.
 4. Go to **Settings → Devices & services → Add integration → VeSync Extended**.
-5. Enter the credentials for the VeSync account that owns the devices and the
-   two-letter country code. Keep **Read-only mode** enabled for the first test.
+5. Choose **Use an existing VeSync account** if the official integration is already
+   configured, or enter credentials manually. Select the account and two-letter
+   country code. Keep **Read-only mode** enabled for the first test. Saved credentials
+   are reused inside Home Assistant; the setup form never receives the password.
 6. Compare the live readings with the VeSync app. Unknown or incompatible responses
    leave the affected device unavailable rather than guessing its state.
 7. After verifying status, use the integration's options to disable read-only mode
@@ -106,4 +108,3 @@ Record behavior changes in [CHANGELOG.md](CHANGELOG.md).
 
 This project is independent of Levoit, VeSync, Home Assistant and those upstream projects.
 Original project code is Apache-2.0 licensed. See [NOTICE](NOTICE) for attribution.
-
