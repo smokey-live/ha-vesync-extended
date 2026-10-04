@@ -28,6 +28,9 @@ capability is advertised by this integration.
 | Display | `setDisplay` | `screenSwitch: 0/1` |
 | Child lock | `setChildLock` | `childLockSwitch: 0/1` |
 
+Selecting manual mode uses `setLevel` at speed 1, following pyvesync's distinction
+between entering manual mode and selecting other presets.
+
 The candidate `_packFileSignature` algorithm and `_signOsInfo: Android` header
 are applied only to this integration's purifier Bypass V2 requests. Authentication
 and other integrations are unchanged. The signature is regenerated with each

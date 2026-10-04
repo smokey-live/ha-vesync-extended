@@ -244,9 +244,10 @@ async def test_retry_rebuilds_credentials_and_signature():
         assert request["headers"]["_signOsInfo"] == "Android"
 
 
-async def test_authentication_retry_is_bounded():
+@pytest.mark.parametrize("code", [-11001000, -11001022])
+async def test_authentication_retry_is_bounded(code):
     manager = make_manager()
-    session = FakeSession({"code": -11001000}, {"code": -11001000})
+    session = FakeSession({"code": code}, {"code": code})
     client = ExtendedClient(manager, session)
     with pytest.raises(AuthenticationError):
         await client.get_state(PURIFIER)

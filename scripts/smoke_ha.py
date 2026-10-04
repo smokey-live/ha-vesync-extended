@@ -14,14 +14,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 async def main():
     from homeassistant.components.fan import FanEntityFeature
     from homeassistant.core import HomeAssistant
+    from homeassistant.exceptions import ConfigEntryAuthFailed
 
     from custom_components.vesync_extended.api import (
+        AuthenticationError,
         Device,
+        DeviceOffline,
         DeviceState,
         ExtendedClient,
         ReadOnlyError,
     )
     from custom_components.vesync_extended.config_flow import VeSyncExtendedConfigFlow
+    from custom_components.vesync_extended.coordinator import VeSyncExtendedCoordinator
     from custom_components.vesync_extended.fan import VeSyncExtendedFan
     from custom_components.vesync_extended.humidifier import VeSyncExtendedHumidifier
     from custom_components.vesync_extended.sensor import VeSyncExtendedSensor
@@ -85,7 +89,31 @@ async def main():
         pass
     else:
         raise AssertionError("Read-only mode issued a write")
-    print("Home Assistant imports, config form, entity state, and read-only checks passed")
+
+    class PartialClient:
+        devices = {device.cid: device, humidifier.cid: humidifier}
+
+        async def get_state(self, target):
+            if target.is_purifier:
+                raise DeviceOffline("Device offline", -11300030)
+            return coordinator.data[humidifier.cid]
+
+    poller = VeSyncExtendedCoordinator(hass, SimpleNamespace(options={}), PartialClient())
+    states = await poller._async_update_data()
+    assert not states[device.cid].available and states[humidifier.cid].available
+
+    class ExpiredClient(PartialClient):
+        async def get_state(self, target):
+            raise AuthenticationError("Expired")
+
+    poller.client = ExpiredClient()
+    try:
+        await poller._async_update_data()
+    except ConfigEntryAuthFailed:
+        pass
+    else:
+        raise AssertionError("Expired authentication did not trigger reauthentication")
+    print("HA imports, config form, entity state, read-only, offline isolation, and reauth passed")
 
 
 if __name__ == "__main__":

@@ -161,6 +161,9 @@ def command_payload(device: Device, action: str, value: Any) -> tuple[str, dict]
         modes = PURIFIER_MODES if device.is_purifier else HUMIDIFIER_MODES
         if value not in modes:
             raise ValueError("Unsupported mode")
+        if device.is_purifier and value == "manual":
+            # pyvesync enters manual mode using a speed command, not a mode write.
+            return "setLevel", {"levelIdx": 0, "manualSpeedLevel": 1, "levelType": "wind"}
         method = "setPurifierMode" if device.is_purifier else "setHumidityMode"
         return method, {"workMode": value}
     if action == "speed" and device.is_purifier:
@@ -331,15 +334,20 @@ class ExtendedClient:
                     async with self.session.request(
                         method, base + endpoint, json=body, headers=headers
                     ) as response:
-                        if response.status != 200:
+                        if response.status == 401:
+                            payload = {"code": -11001022}
+                        elif response.status != 200:
                             raise ApiError(f"VeSync HTTP error {response.status}")
-                        payload = await response.json()
-            except ClientError as err:
+                        else:
+                            payload = await response.json()
+            except (ClientError, ValueError) as err:
                 raise ApiError("Could not connect to VeSync") from err
             if not isinstance(payload, dict):
                 raise ApiError("Invalid VeSync response")
             try:
                 token_error = Helpers.parse_error_code(payload).error_type == ErrorTypes.TOKEN_ERROR
+                # Newer backends also use this code, as documented by Homebridge.
+                token_error |= payload.get("code") == -11001022
             except (TypeError, KeyError, ValueError) as err:
                 raise ApiError("Invalid VeSync response") from err
             if not token_error:
