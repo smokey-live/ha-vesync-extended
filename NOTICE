@@ -1,0 +1,16 @@
+VeSync Extended
+Copyright 2026 smokey-live
+
+Original project code is licensed under Apache License 2.0.
+
+The candidate purifier request-signature calculation in api.py is adapted from
+rocord01's contribution in webdjoe/pyvesync pull request #532.
+pyvesync is Copyright 2019 Mark Perdue and is distributed under the MIT License;
+see licenses/pyvesync-MIT.txt. Authentication and request defaults are imported
+from the separately installed pyvesync package.
+
+NeoClassic 450S protocol fields and device capabilities were researched using
+pschroeder89/homebridge-levoit-humidifiers, distributed under Apache License 2.0.
+The integration is independently implemented in Python; no TypeScript files are bundled.
+
+Upstream source links and pending verification are documented in docs/PROTOCOL.md.

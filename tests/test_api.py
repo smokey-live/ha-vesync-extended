@@ -1,0 +1,263 @@
+"""Synthetic protocol fixtures; these are not captures from a real device."""
+
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+import pytest
+
+from custom_components.vesync_extended.api import (
+    ApiError,
+    AuthenticationError,
+    Device,
+    DeviceOffline,
+    ExtendedClient,
+    ReadOnlyError,
+    command_payload,
+    pack_signature,
+    parse_state,
+    unwrap_response,
+)
+
+PURIFIER = Device("test-purifier", "Test purifier", "LAP-P501S-WUSR", "test-p", "US")
+HUMIDIFIER = Device("test-humidifier", "Test humidifier", "LUH-N451S-WUS", "test-h", "US")
+
+
+def test_purifier_missing_light_and_timer_keys_is_valid():
+    state = parse_state(
+        PURIFIER,
+        {
+            "powerSwitch": 1,
+            "workMode": "pet",
+            "fanSpeedLevel": 2,
+            "PM25": 12,
+            "filterLifePercent": 98,
+        },
+    )
+    assert state.available and state.power and state.mode == "pet"
+    assert state.speed == 2 and state.pm25 == 12 and state.filter_life == 98
+    assert state.display is None and state.child_lock is None
+
+
+def test_humidifier_keeps_readings_when_powered_off():
+    state = parse_state(
+        HUMIDIFIER,
+        {
+            "powerSwitch": 0,
+            "workMode": "auto",
+            "humidity": 69,
+            "targetHumidity": 45,
+            "virtualLevel": 3,
+            "screenSwitch": 0,
+        },
+    )
+    assert state.power is False
+    assert state.humidity == 69 and state.target_humidity == 45
+    assert state.display is False and state.mist_level == 3
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {},
+        {"enabled": True, "mode": "auto"},
+        {"powerSwitch": "1", "workMode": "auto"},
+        {"powerSwitch": 1, "workMode": "unknown"},
+        {"powerSwitch": 1, "workMode": "auto", "humidity": 150, "targetHumidity": 50},
+    ],
+)
+def test_rejects_incompatible_humidifier_schema(data):
+    with pytest.raises(ApiError):
+        parse_state(HUMIDIFIER, data)
+
+
+@pytest.mark.parametrize(
+    "device,action,value,expected",
+    [
+        (PURIFIER, "power", True, ("setSwitch", {"powerSwitch": 1, "switchIdx": 0})),
+        (HUMIDIFIER, "power", False, ("setSwitch", {"powerSwitch": 0, "id": 0})),
+        (
+            PURIFIER,
+            "speed",
+            3,
+            ("setLevel", {"levelIdx": 0, "manualSpeedLevel": 3, "levelType": "wind"}),
+        ),
+        (HUMIDIFIER, "humidity", 40, ("setTargetHumidity", {"targetHumidity": 40, "id": 0})),
+        (HUMIDIFIER, "mode", "sleep", ("setHumidityMode", {"workMode": "sleep"})),
+        (PURIFIER, "mode", "pet", ("setPurifierMode", {"workMode": "pet"})),
+    ],
+)
+def test_command_fields_match_each_device_family(device, action, value, expected):
+    assert command_payload(device, action, value) == expected
+
+
+@pytest.mark.parametrize(
+    "device,action,value",
+    [
+        (PURIFIER, "speed", 4),
+        (PURIFIER, "speed", True),
+        (PURIFIER, "speed", 1.2),
+        (PURIFIER, "power", 1),
+        (HUMIDIFIER, "humidity", 81),
+        (HUMIDIFIER, "humidity", "45"),
+        (HUMIDIFIER, "child_lock", True),
+        (HUMIDIFIER, "warm_mist", 1),
+        (HUMIDIFIER, "mist", 9),
+        (PURIFIER, "resetFilter", None),
+        (HUMIDIFIER, "mode", "humidity"),
+    ],
+)
+def test_unverified_and_invalid_commands_cannot_be_sent(device, action, value):
+    with pytest.raises(ValueError):
+        command_payload(device, action, value)
+
+
+def test_inner_offline_error_is_not_reported_as_success():
+    with pytest.raises(DeviceOffline) as err:
+        unwrap_response({"code": 0, "result": {"code": -11300030}}, bypass=True)
+    assert err.value.code == -11300030
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        None,
+        {},
+        {"code": 0},
+        {"code": 0, "result": {}},
+        {"code": 0, "result": {"code": -1, "result": {}}},
+        {"code": 0, "result": {"code": 0, "result": None}},
+    ],
+)
+def test_invalid_or_failed_response_envelopes_are_rejected(response):
+    with pytest.raises(ApiError):
+        unwrap_response(response, bypass=True)
+
+
+def test_successful_empty_write_result_is_accepted():
+    assert unwrap_response({"code": 0, "result": {"code": 0, "result": {}}}, bypass=True) == {}
+
+
+class FakeResponse:
+    status = 200
+
+    def __init__(self, payload):
+        self.payload = payload
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_):
+        pass
+
+    async def json(self):
+        return self.payload
+
+
+class FakeSession:
+    def __init__(self, *responses):
+        self.responses = iter(responses)
+        self.calls = []
+
+    def request(self, method, url, **kwargs):
+        self.calls.append((method, url, kwargs))
+        return FakeResponse(next(self.responses))
+
+
+def make_manager(region="US"):
+    return SimpleNamespace(
+        auth=SimpleNamespace(token="fake-token", account_id="fake-account"),
+        time_zone="America/Chicago",
+        country_code="US",
+        current_region=region,
+        login=AsyncMock(return_value=True),
+    )
+
+
+async def test_read_only_blocks_before_network_call():
+    session = FakeSession()
+    client = ExtendedClient(make_manager(), session)
+    with pytest.raises(ReadOnlyError):
+        await client.command(PURIFIER, "power", True)
+    assert session.calls == []
+
+
+async def test_discovery_filters_supported_models_without_mutating_library():
+    session = FakeSession(
+        {
+            "code": 0,
+            "result": {
+                "list": [
+                    {
+                        "cid": PURIFIER.cid,
+                        "deviceName": "Test",
+                        "deviceType": PURIFIER.model,
+                        "configModule": "test",
+                        "deviceRegion": "US",
+                    },
+                    {"cid": "classic", "deviceType": "Classic200S", "configModule": "test"},
+                ]
+            },
+        }
+    )
+    client = ExtendedClient(make_manager(), session)
+    assert list(await client.discover()) == [PURIFIER.cid]
+    assert session.calls[0][2]["json"]["pageNo"] == 1
+
+
+async def test_discovery_visits_second_page():
+    irrelevant = {"deviceType": "Classic200S"}
+    session = FakeSession(
+        {"code": 0, "result": {"list": [irrelevant] * 100}},
+        {
+            "code": 0,
+            "result": {
+                "list": [
+                    {"cid": HUMIDIFIER.cid, "deviceType": HUMIDIFIER.model, "configModule": "test"},
+                ]
+            },
+        },
+    )
+    client = ExtendedClient(make_manager(), session)
+    assert list(await client.discover()) == [HUMIDIFIER.cid]
+    assert [call[2]["json"]["pageNo"] for call in session.calls] == [1, 2]
+
+
+async def test_retry_rebuilds_credentials_and_signature():
+    manager = make_manager()
+
+    async def login():
+        manager.auth.token = "fresh-token"
+        return True
+
+    manager.login.side_effect = login
+    session = FakeSession(
+        {"code": -11001000},
+        {"code": 0, "result": {"code": 0, "result": {}}},
+    )
+    client = ExtendedClient(manager, session, read_only=False)
+    await client.command(PURIFIER, "power", True)
+    assert [call[2]["json"]["token"] for call in session.calls] == ["fake-token", "fresh-token"]
+    for _, _, request in session.calls:
+        assert request["headers"]["_packFileSignature"] == pack_signature(
+            request["json"]["traceId"]
+        )
+        assert request["headers"]["_signOsInfo"] == "Android"
+
+
+async def test_authentication_retry_is_bounded():
+    manager = make_manager()
+    session = FakeSession({"code": -11001000}, {"code": -11001000})
+    client = ExtendedClient(manager, session)
+    with pytest.raises(AuthenticationError):
+        await client.get_state(PURIFIER)
+    assert len(session.calls) == 2
+    manager.login.assert_awaited_once()
+
+
+async def test_humidifier_write_uses_put_without_purifier_signature():
+    session = FakeSession({"code": 0, "result": {"code": 0, "result": {}}})
+    client = ExtendedClient(make_manager("EU"), session, read_only=False)
+    await client.command(HUMIDIFIER, "humidity", 45)
+    method, url, request = session.calls[0]
+    assert method == "put" and url.startswith("https://smartapi.vesync.eu/")
+    assert "_packFileSignature" not in request["headers"]

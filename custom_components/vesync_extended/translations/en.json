@@ -1,0 +1,49 @@
+{
+  "title": "VeSync Extended",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect your VeSync account",
+        "description": "Add Vital Pet Pro and NeoClassic 450S devices. Leave read-only mode enabled until live readings have been verified.",
+        "data": {
+          "username": "VeSync email",
+          "password": "Password",
+          "country": "Country code",
+          "read_only": "Read-only mode (recommended for the first test)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reconnect your VeSync account",
+        "description": "Re-enter credentials for the same VeSync account.",
+        "data": {
+          "username": "VeSync email",
+          "password": "Password",
+          "country": "Country code",
+          "read_only": "Read-only mode (recommended for the first test)"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Could not authenticate with VeSync. Check your credentials.",
+      "cannot_connect": "Could not connect to VeSync. Try again later.",
+      "no_devices": "No supported Vital Pet Pro or NeoClassic 450S devices were found on this account."
+    },
+    "abort": {
+      "already_configured": "This account is already configured.",
+      "reauth_successful": "The account was reconnected.",
+      "wrong_account": "Use the same account as the existing entry."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "VeSync Extended options",
+        "description": "Enable controls only after verifying live status readings.",
+        "data": {
+          "read_only": "Read-only mode",
+          "poll_interval": "Polling interval (seconds)"
+        }
+      }
+    }
+  }
+}

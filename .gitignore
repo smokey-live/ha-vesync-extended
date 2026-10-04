@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+.env*
+*.pcap
+*.pcapng
+*.har
+captures/
+private/
+live-results/
+dist/
+*.log
+
