@@ -56,6 +56,25 @@ def test_humidifier_keeps_readings_when_powered_off():
 
 
 @pytest.mark.parametrize(
+    "device,values,expected_mode",
+    [
+        (PURIFIER, {"powerSwitch": 1, "workMode": "odorShieldBalanced"}, "odorShieldBalanced"),
+        (
+            HUMIDIFIER,
+            {"powerSwitch": 0, "workMode": "autoPro", "humidity": 69, "targetHumidity": 45},
+            "autoPro",
+        ),
+    ],
+)
+def test_observed_new_modes_are_readable_but_not_writable(device, values, expected_mode):
+    # Synthetic non-identifying fixtures using the mode names observed live.
+    state = parse_state(device, values)
+    assert state.available and state.mode == expected_mode
+    with pytest.raises(ValueError):
+        command_payload(device, "mode", expected_mode)
+
+
+@pytest.mark.parametrize(
     "data",
     [
         {},

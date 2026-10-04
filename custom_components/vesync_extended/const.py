@@ -10,3 +10,7 @@ HUMIDIFIER_MODELS = frozenset({"LUH-N451S-WUS"})
 SUPPORTED_MODELS = PURIFIER_MODELS | HUMIDIFIER_MODELS
 PURIFIER_MODES = ("manual", "auto", "sleep", "pet")
 HUMIDIFIER_MODES = ("manual", "auto", "sleep")
+# Seen in successful status responses on the exact target models. These do not
+# establish a write protocol and must not widen the command allowlist.
+PURIFIER_STATUS_MODES = PURIFIER_MODES + ("odorShieldBalanced",)
+HUMIDIFIER_STATUS_MODES = HUMIDIFIER_MODES + ("autoPro",)

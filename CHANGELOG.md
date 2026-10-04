@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2 — 2026-10-04
+
+- Recognize live-observed `odorShieldBalanced` and `autoPro` status modes.
+- Preserve those exact values as `cloud_mode` attributes without making them writable.
+- Expose read-only status and existing display/child-lock readings as entity attributes.
+- Include safe client error reasons in unavailable-state diagnostics and probe reports.
+- Test that the newly readable modes remain blocked by the command allowlist.
+
 ## 0.1.1 — 2026-10-04
 
 - Add setup using an existing official VeSync account without re-entering its password.

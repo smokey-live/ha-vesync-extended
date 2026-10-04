@@ -16,6 +16,11 @@ Product labels may omit the region suffix. The integration matches the identifie
 returned by the cloud, rather than assuming that similarly named products share a protocol.
 Devices already handled by the official integration are excluded here.
 
+Status reads also recognize the observed `odorShieldBalanced` purifier mode and
+`autoPro` humidifier mode. Their exact cloud names appear in the entity's
+`cloud_mode` attribute. They are not added to the selectable modes or command
+allowlist, because a status response alone does not verify how to set that mode.
+
 Mist-level writes, lighting, music, scenes, schedules, firmware updates and filter
 resets are not implemented. The reported physical and virtual mist-level ranges
 need verification before exposing a mist control. The NeoClassic 450S has no warm-mist control.

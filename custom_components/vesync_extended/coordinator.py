@@ -52,9 +52,9 @@ class VeSyncExtendedCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
             except AuthenticationError as err:
                 raise ConfigEntryAuthFailed("VeSync session expired") from err
             except (DeviceOffline, ApiError) as err:
-                states[cid] = DeviceState(error_code=err.code)
+                states[cid] = DeviceState(error_code=err.code, error_reason=str(err))
             except TimeoutError:
-                states[cid] = DeviceState()
+                states[cid] = DeviceState(error_reason="Status request timed out")
         return states
 
     async def async_control(self, device, action, value):

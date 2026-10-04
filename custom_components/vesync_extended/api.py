@@ -20,7 +20,14 @@ from pyvesync.models.vesync_models import RequestDeviceListModel
 from pyvesync.utils.errors import ErrorTypes, VeSyncError, VeSyncLoginError
 from pyvesync.utils.helpers import Helpers
 
-from .const import HUMIDIFIER_MODELS, HUMIDIFIER_MODES, PURIFIER_MODELS, PURIFIER_MODES
+from .const import (
+    HUMIDIFIER_MODELS,
+    HUMIDIFIER_MODES,
+    HUMIDIFIER_STATUS_MODES,
+    PURIFIER_MODELS,
+    PURIFIER_MODES,
+    PURIFIER_STATUS_MODES,
+)
 
 BYPASS_ENDPOINT = "/cloud/v2/deviceManaged/bypassV2"
 # Candidate algorithm from pyvesync PR #532. Kept local to the new purifiers.
@@ -90,6 +97,7 @@ class DeviceState:
     display: bool | None = None
     child_lock: bool | None = None
     error_code: int | None = None
+    error_reason: str | None = None
     # Field names are useful when extending support, without exposing identifiers.
     response_fields: list[str] = field(default_factory=list)
 
@@ -117,7 +125,7 @@ def parse_state(device: Device, data: dict[str, Any]) -> DeviceState:
     """Parse only documented fields. Missing optional fields remain unknown."""
     power = _switch(data.get("powerSwitch"))
     mode = data.get("workMode")
-    modes = PURIFIER_MODES if device.is_purifier else HUMIDIFIER_MODES
+    modes = PURIFIER_STATUS_MODES if device.is_purifier else HUMIDIFIER_STATUS_MODES
     if power is None or not isinstance(mode, str) or mode not in modes:
         raise ApiError("Unsupported device status schema")
     state = DeviceState(

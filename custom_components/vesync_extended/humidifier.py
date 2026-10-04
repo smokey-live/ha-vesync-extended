@@ -50,7 +50,16 @@ class VeSyncExtendedHumidifier(VeSyncExtendedEntity, HumidifierEntity):
 
     @property
     def mode(self):
-        return self.device_state.mode
+        mode = self.device_state.mode
+        return mode if mode in HUMIDIFIER_MODES else None
+
+    @property
+    def extra_state_attributes(self):
+        return {
+            "read_only": self.coordinator.client.read_only,
+            "cloud_mode": self.device_state.mode,
+            "display": self.device_state.display,
+        }
 
     async def async_turn_on(self, **kwargs):
         await self.control("power", True)

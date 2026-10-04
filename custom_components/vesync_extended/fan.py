@@ -49,7 +49,18 @@ class VeSyncExtendedFan(VeSyncExtendedEntity, FanEntity):
 
     @property
     def preset_mode(self):
-        return self.device_state.mode
+        mode = self.device_state.mode
+        return mode if mode in PURIFIER_MODES else None
+
+    @property
+    def extra_state_attributes(self):
+        return {
+            "read_only": self.coordinator.client.read_only,
+            "cloud_mode": self.device_state.mode,
+            "fan_speed_level": self.device_state.speed,
+            "display": self.device_state.display,
+            "child_lock": self.device_state.child_lock,
+        }
 
     async def async_turn_on(self, percentage=None, preset_mode=None, **kwargs):
         await self.control("power", True)

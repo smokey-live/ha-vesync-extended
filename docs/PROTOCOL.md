@@ -71,3 +71,22 @@ not readable command bodies. Existing implementations provide enough evidence to
 try basic controls first. Unknown lighting, audio and scene commands may still need
 decrypted application traffic. No certificate-trust changes or app instrumentation
 are required by this prototype.
+
+## Live status findings — 2026-10-04
+
+Read-only discovery succeeded for two `LAP-P501S-WUSR` units and one `LUH-N451S-WUS`.
+All three returned successful outer and inner response codes with the documented
+status fields. The initial parser rejected them because the current `workMode`
+values differed from the older mode allowlist: `odorShieldBalanced` on both
+purifiers and `autoPro` on the humidifier. The official app displayed the purifiers
+in Auto mode. Homebridge also documents `autoPro` for the 450S profile.
+
+These exact values are now accepted by the status parser and preserved as the
+`cloud_mode` entity attribute. Readable modes and command modes have separate
+allowlists. The new status names are not offered as selectable modes and cannot
+be sent as mode commands. Their write semantics, and any mapping from an older
+`auto` command to the new modes, remain unverified.
+
+Unavailable-state diagnostics now retain the client-generated error reason.
+Those messages contain only fixed explanations and numeric HTTP/error codes;
+they never include a raw cloud message or request/response body.

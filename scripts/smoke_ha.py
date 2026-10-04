@@ -115,6 +115,13 @@ async def main():
     assert humid.is_on is False and humid.current_humidity == 69 and humid.target_humidity == 45
     assert VeSyncExtendedSensor(coordinator, device, "pm25").native_value == 12
     assert VeSyncExtendedSwitch(coordinator, humidifier, "display", "Display").is_on is False
+    coordinator.data[device.cid].mode = "odorShieldBalanced"
+    coordinator.data[humidifier.cid].mode = "autoPro"
+    assert fan.preset_mode is None and humid.mode is None
+    assert fan.extra_state_attributes["cloud_mode"] == "odorShieldBalanced"
+    assert humid.extra_state_attributes["cloud_mode"] == "autoPro"
+    assert "odorShieldBalanced" not in fan.preset_modes
+    assert "autoPro" not in humid.available_modes
     coordinator.data[device.cid] = DeviceState()
     assert not fan.available and fan.percentage is None
 
@@ -140,6 +147,7 @@ async def main():
     poller = VeSyncExtendedCoordinator(hass, entry, PartialClient())
     states = await poller._async_update_data()
     assert not states[device.cid].available and states[humidifier.cid].available
+    assert states[device.cid].error_reason == "Device offline"
 
     class ExpiredClient(PartialClient):
         async def get_state(self, target):

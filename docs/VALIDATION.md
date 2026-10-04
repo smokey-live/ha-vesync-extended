@@ -38,6 +38,12 @@ evidence separately below after testing the owned devices.
 
 ## Device results
 
+Read-only discovery was performed on 2026-10-04 in Home Assistant 2026.9.4.
+Version 0.1.1 found all three target devices, but rejected their new `workMode`
+values. A temporary read-only probe confirmed successful response envelopes;
+0.1.2 adds the exact observed mode names without widening the write allowlist.
+Status parsing and installation of that correction are being verified separately.
+
 | Model | Status | Control | Restart | Notes |
 | --- | --- | --- | --- | --- |
 | `LAP-P501S-WUSR` | Pending | Pending | Pending | Two owned units |

@@ -47,7 +47,12 @@ async def probe(config_dir: Path | None):
                 results.append({"model": device.model, "state": asdict(state)})
             except ApiError as err:
                 results.append(
-                    {"model": device.model, "error": type(err).__name__, "code": err.code}
+                    {
+                        "model": device.model,
+                        "error": type(err).__name__,
+                        "code": err.code,
+                        "error_reason": str(err),
+                    }
                 )
             except TimeoutError:
                 results.append({"model": device.model, "error": "TimeoutError"})
