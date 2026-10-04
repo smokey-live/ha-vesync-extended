@@ -1,12 +1,12 @@
 """Non-identifying humidity, PM2.5, filter-life, and mist status values."""
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
-from homeassistant.const import CONCENTRATION_MICROGRAMS_PER_CUBIC_METER, PERCENTAGE
+from homeassistant.const import PERCENTAGE, UnitOfDensity
 
 from .entity import VeSyncExtendedEntity
 
 _SENSORS = {
-    "pm25": ("PM2.5", SensorDeviceClass.PM25, CONCENTRATION_MICROGRAMS_PER_CUBIC_METER),
+    "pm25": ("PM2.5", SensorDeviceClass.PM25, UnitOfDensity.MICROGRAMS_PER_CUBIC_METER),
     "filter_life": ("Filter life", None, PERCENTAGE),
     "humidity": ("Humidity", SensorDeviceClass.HUMIDITY, PERCENTAGE),
     "mist_level": ("Mist level", None, None),

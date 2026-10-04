@@ -98,7 +98,8 @@ async def main():
                 raise DeviceOffline("Device offline", -11300030)
             return coordinator.data[humidifier.cid]
 
-    poller = VeSyncExtendedCoordinator(hass, SimpleNamespace(options={}), PartialClient())
+    entry = SimpleNamespace(options={}, async_on_unload=lambda callback: None)
+    poller = VeSyncExtendedCoordinator(hass, entry, PartialClient())
     states = await poller._async_update_data()
     assert not states[device.cid].available and states[humidifier.cid].available
 
