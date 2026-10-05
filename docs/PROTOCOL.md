@@ -31,6 +31,15 @@ capability is advertised by this integration.
 Selecting manual mode uses `setLevel` at speed 1, following pyvesync's distinction
 between entering manual mode and selecting other presets.
 
+Version 0.1.4 uses Home Assistant's ordered-list percentage helpers with levels
+`[1, 2, 3]`, matching the approach in its
+[official VeSync fan platform](https://github.com/home-assistant/core/blob/2026.9.4/homeassistant/components/vesync/fan.py).
+The reported percentages are 33, 66 and 100; positive requests up to 33 select
+level 1, up to 66 select level 2, and higher requests select level 3. Zero is a
+power-off request. This makes every reported speed round-trip correctly, fixing
+the prototype's rounded level-2 reading of 67, which its ceiling conversion
+incorrectly sent back as level 3.
+
 The candidate `_packFileSignature` algorithm and `_signOsInfo: Android` header
 are applied only to this integration's purifier Bypass V2 requests. Authentication
 and other integrations are unchanged. The signature is regenerated with each
@@ -82,7 +91,10 @@ All three returned successful outer and inner response codes with the documented
 status fields. The initial parser rejected them because the current `workMode`
 values differed from the older mode allowlist: `odorShieldBalanced` on both
 purifiers and `autoPro` on the humidifier. The official app displayed the purifiers
-in Auto mode. Homebridge also documents `autoPro` for the 450S profile.
+in Auto mode. The official humidifier app displayed Auto with the Smart submode.
+Homebridge's shared mode enum includes `autoPro`, but its inspected 450S profile
+does not enable the separate `hasAutoProMode` flag; it does not verify a writable
+mapping for this observed mode.
 
 These exact values are now accepted by the status parser and preserved as the
 `cloud_mode` entity attribute. Readable modes and command modes have separate

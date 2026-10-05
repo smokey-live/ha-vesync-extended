@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.4 — 2026-10-04
+
+- Use Home Assistant's standard ordered-speed conversion in both directions:
+  levels 1, 2 and 3 report 33%, 66% and 100%. Reapplying a reported speed now
+  preserves that level; the previous rounded 67% reading selected level 3.
+- Check each speed's round trip, conversion boundaries, off and invalid requests
+  in the Home Assistant 2026.9.4 smoke test.
+- Record physically confirmed power-off and power-on tests on one US purifier
+  and one NeoClassic 450S. Other control outcomes are documented separately.
+
 ## 0.1.3 — 2026-10-04
 
 - Accept command acknowledgments that omit the inner result only when both response

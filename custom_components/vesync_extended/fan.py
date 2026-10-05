@@ -1,11 +1,15 @@
 """Vital Pet Pro power, presets, and three manual speeds."""
 
-import math
-
 from homeassistant.components.fan import FanEntity, FanEntityFeature
+from homeassistant.util.percentage import (
+    ordered_list_item_to_percentage,
+    percentage_to_ordered_list_item,
+)
 
 from .const import PURIFIER_MODES
 from .entity import VeSyncExtendedEntity
+
+_SPEED_LEVELS = [1, 2, 3]
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -45,7 +49,9 @@ class VeSyncExtendedFan(VeSyncExtendedEntity, FanEntity):
         if self.is_on is False:
             return 0
         speed = self.device_state.speed
-        return round(speed * 100 / 3) if speed is not None else None
+        if speed is None or speed == 0:
+            return speed
+        return ordered_list_item_to_percentage(_SPEED_LEVELS, speed)
 
     @property
     def preset_mode(self):
@@ -78,7 +84,7 @@ class VeSyncExtendedFan(VeSyncExtendedEntity, FanEntity):
         if percentage == 0:
             await self.async_turn_off()
         else:
-            await self.control("speed", math.ceil(percentage * 3 / 100))
+            await self.control("speed", percentage_to_ordered_list_item(_SPEED_LEVELS, percentage))
 
     async def async_set_preset_mode(self, preset_mode):
         await self.control("mode", preset_mode)

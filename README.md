@@ -11,6 +11,11 @@ acknowledgment issue corrected in 0.1.3. Controls remain experimental; see the
 [live validation record](docs/VALIDATION.md). Read-only mode is enabled by default.
 Protocol tests use synthetic fixtures.**
 
+Version 0.1.4 fixes the three-speed percentage conversion. Power-off and power-on
+commands have also been physically confirmed on one US purifier and one
+NeoClassic 450S. Other controls still require the individual validation described
+below.
+
 | Product | VeSync cloud identifier | Readings and candidate controls |
 | --- | --- | --- |
 | Vital Pet Pro air purifier | `LAP-P501S-WUSR`, `LAP-P501S-AUSR` | Power, three speeds, manual/auto/sleep/pet, PM2.5, filter life, display, child lock |

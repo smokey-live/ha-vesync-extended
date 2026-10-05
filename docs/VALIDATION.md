@@ -38,6 +38,30 @@ evidence separately below after testing the owned devices.
 
 ## Device results
 
+### Power tests — 2026-10-04
+
+With water present in the humidifier, Home Assistant sent explicit power-off
+and power-on commands to one `LAP-P501S-WUSR` and one `LUH-N451S-WUS`. The owner
+physically confirmed that the purifier stopped blowing air and ran again after
+restoration, and that the humidifier stopped misting and resumed after restoration.
+No control command was sent to the second purifier during these tests.
+
+The Home Assistant action calls completed without a reported device error.
+Immediate status reads can still show the older power value, as seen when the
+purifier's UI returned to on after its physically confirmed off command. Explicit
+on/off actions were used for restoration rather than toggling an outdated reading.
+These observations verify the physical power behavior, not immediate cloud-state
+confirmation or a guaranteed reporting delay.
+
+### Fan-speed conversion regression — 0.1.4
+
+Code inspection found that level 2 reported 67% but a 67% request selected level 3.
+The Home Assistant smoke test now checks that all three reported percentages
+round-trip to the same level, along with the boundaries between levels, off,
+unknown state and out-of-range input. Version 0.1.4 uses Home Assistant's standard
+ordered-list helpers and reports 33%, 66% and 100%. These synthetic checks do not
+establish live speed-control behavior.
+
 ### Display tests — 2026-10-04
 
 Only display-setting commands were authorized and sent. Power, speed, mode,

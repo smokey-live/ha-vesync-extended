@@ -111,6 +111,32 @@ async def main():
     assert fan.supported_features & FanEntityFeature.SET_SPEED
     await fan.async_set_percentage(34)
     assert calls[-1] == (device.cid, "speed", 2)
+    # Reapplying the displayed percentage must preserve each physical speed.
+    for speed, percentage in ((1, 33), (2, 66), (3, 100)):
+        coordinator.data[device.cid].speed = speed
+        assert fan.percentage == percentage
+        await fan.async_set_percentage(fan.percentage)
+        assert calls[-1] == (device.cid, "speed", speed)
+    for percentage, speed in ((1, 1), (33, 1), (34, 2), (66, 2), (67, 3), (100, 3)):
+        await fan.async_set_percentage(percentage)
+        assert calls[-1] == (device.cid, "speed", speed)
+    await fan.async_set_percentage(0)
+    assert calls[-1] == (device.cid, "power", False)
+    for percentage in (-1, 101):
+        count = len(calls)
+        try:
+            await fan.async_set_percentage(percentage)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("Out-of-range fan percentage was accepted")
+        assert len(calls) == count
+    coordinator.data[device.cid].speed = 0
+    assert fan.percentage == 0
+    coordinator.data[device.cid].power = False
+    coordinator.data[device.cid].speed = 3
+    assert fan.percentage == 0
+    coordinator.data[device.cid].power = True
     humid = VeSyncExtendedHumidifier(coordinator, humidifier)
     assert humid.is_on is False and humid.current_humidity == 69 and humid.target_humidity == 45
     assert VeSyncExtendedSensor(coordinator, device, "pm25").native_value == 12
