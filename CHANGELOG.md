@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.3 — 2026-10-04
+
+- Accept command acknowledgments that omit the inner result only when both response
+  codes indicate success. Status reads still require a data result.
+- Confirm display changes with bounded fresh status reads, without resending the command.
+- Include the documented `id: 0` in NeoClassic display commands.
+- Test delayed confirmation, unchanged state, read-only failure, and malformed acknowledgments.
+
 ## 0.1.2 — 2026-10-04
 
 - Recognize live-observed `odorShieldBalanced` and `autoPro` status modes.

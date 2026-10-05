@@ -53,7 +53,7 @@ This differs from the older OasisMist snake_case responses.
 | Power | `setSwitch` | `powerSwitch: 0/1`, `id: 0` |
 | Target humidity | `setTargetHumidity` | `targetHumidity: 30..80`, `id: 0` |
 | Mode | `setHumidityMode` | `workMode: manual/auto/sleep` |
-| Display | `setDisplay` | `screenSwitch: 0/1` |
+| Display | `setDisplay` | `screenSwitch: 0/1`, `id: 0` |
 
 The Homebridge client uses POST for reads and PUT for writes. The initial prototype
 follows that behavior for the humidifier; purifier requests follow pyvesync's POST
@@ -96,3 +96,14 @@ commands were issued during this verification.
 Unavailable-state diagnostics now retain the client-generated error reason.
 Those messages contain only fixed explanations and numeric HTTP/error codes;
 they never include a raw cloud message or request/response body.
+
+## Display acknowledgment findings — 2026-10-04
+
+A live purifier display command returned outer code 0 and inner code 0, but its
+inner envelope contained only `code` and `traceId`, with no `result`. Version 0.1.2
+therefore reported an error even though a physical display change was observed.
+Version 0.1.3 accepts this acknowledgment shape for writes only; it still rejects
+missing inner envelopes, nonzero codes, and explicit null/malformed results.
+Display controls read status again for confirmation, retrying reads after 2, 4
+and 6 seconds when necessary. Commands are never resent by that confirmation loop.
+The display test and restoration outcomes are recorded in [validation](VALIDATION.md).

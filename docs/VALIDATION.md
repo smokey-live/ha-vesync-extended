@@ -38,6 +38,12 @@ evidence separately below after testing the owned devices.
 
 ## Device results
 
+Display testing subsequently exposed an acknowledgment parsing issue in 0.1.2:
+the purifier accepted a command, but the integration rejected its success envelope
+because it omitted the inner data result. Version 0.1.3 corrects that distinction
+and adds bounded display-state confirmation. Live verification of the correction,
+the other display controls, and final restoration is in progress.
+
 Read-only discovery was performed on 2026-10-04 in Home Assistant 2026.9.4.
 Version 0.1.1 found all three target devices, but rejected their new `workMode`
 values. A temporary read-only probe confirmed successful response envelopes;

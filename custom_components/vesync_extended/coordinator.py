@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import timedelta
 
@@ -64,6 +65,17 @@ class VeSyncExtendedCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
         try:
             await self.client.command(device, action, value)
             state = await self.client.get_state(device)
+            if action == "display":
+                # Acknowledgments can precede the device's updated cloud status.
+                # Read again without resending the setting command.
+                for delay in (2, 4, 6):
+                    if state.available and state.display is value:
+                        break
+                    await asyncio.sleep(delay)
+                    state = await self.client.get_state(device)
+                if not state.available or state.display is not value:
+                    self.async_set_updated_data({**self.data, device.cid: state})
+                    raise HomeAssistantError("Device did not confirm the requested display setting")
         except AuthenticationError as err:
             raise ConfigEntryAuthFailed("VeSync session expired") from err
         except (ApiError, ValueError, TimeoutError) as err:

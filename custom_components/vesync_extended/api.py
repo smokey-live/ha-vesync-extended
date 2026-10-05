@@ -161,7 +161,10 @@ def command_payload(device: Device, action: str, value: Any) -> tuple[str, dict]
             index = "switchIdx" if device.is_purifier else "id"
             return "setSwitch", {"powerSwitch": int(value), index: 0}
         if action == "display":
-            return "setDisplay", {"screenSwitch": int(value)}
+            data = {"screenSwitch": int(value)}
+            if not device.is_purifier:
+                data["id"] = 0
+            return "setDisplay", data
         if not device.is_purifier:
             raise ValueError("Humidifier child lock has not been verified")
         return "setChildLock", {"childLockSwitch": int(value)}
@@ -187,9 +190,9 @@ def command_payload(device: Device, action: str, value: Any) -> tuple[str, dict]
     raise ValueError("Unsupported or unverified action")
 
 
-def unwrap_response(response: Any, *, bypass: bool) -> dict:
+def unwrap_response(response: Any, *, bypass: bool, write: bool = False) -> dict:
     """Reject outer and inner errors, including false-success write responses."""
-    if not isinstance(response, dict) or not isinstance(response.get("code"), int):
+    if not isinstance(response, dict) or type(response.get("code")) is not int:
         raise ApiError("Invalid VeSync response envelope")
     layers = [response]
     if bypass:
@@ -198,6 +201,8 @@ def unwrap_response(response: Any, *, bypass: bool) -> dict:
             layers.append(inner)
     for layer in layers:
         code = layer.get("code")
+        if type(code) is not int:
+            raise ApiError("Invalid VeSync response code")
         if code != 0:
             if code in _OFFLINE_CODES:
                 raise DeviceOffline("Device offline", code)
@@ -205,6 +210,11 @@ def unwrap_response(response: Any, *, bypass: bool) -> dict:
     if bypass:
         if len(layers) != 2:
             raise ApiError("Missing device response envelope")
+        # Live setDisplay acknowledgments contain both success codes but omit
+        # the inner result. Reads still require data, and explicit null or
+        # malformed results remain errors. State must be confirmed separately.
+        if write and "result" not in layers[-1]:
+            return {}
         result = layers[-1].get("result")
     else:
         result = response.get("result")
@@ -331,7 +341,7 @@ class ExtendedClient:
         # Homebridge uses PUT for humidifier writes; pyvesync uses POST for purifiers.
         http_method = "put" if write and not device.is_purifier else "post"
         response = await self._request(BYPASS_ENDPOINT, build_request, http_method)
-        return unwrap_response(response, bypass=True)
+        return unwrap_response(response, bypass=True, write=write)
 
     async def _request(self, endpoint: str, build_request, method: str) -> dict:
         for attempt in range(2):

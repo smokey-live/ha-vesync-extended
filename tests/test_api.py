@@ -103,6 +103,8 @@ def test_rejects_incompatible_humidifier_schema(data):
         (HUMIDIFIER, "humidity", 40, ("setTargetHumidity", {"targetHumidity": 40, "id": 0})),
         (HUMIDIFIER, "mode", "sleep", ("setHumidityMode", {"workMode": "sleep"})),
         (PURIFIER, "mode", "pet", ("setPurifierMode", {"workMode": "pet"})),
+        (PURIFIER, "display", True, ("setDisplay", {"screenSwitch": 1})),
+        (HUMIDIFIER, "display", False, ("setDisplay", {"screenSwitch": 0, "id": 0})),
     ],
 )
 def test_command_fields_match_each_device_family(device, action, value, expected):
@@ -154,6 +156,38 @@ def test_invalid_or_failed_response_envelopes_are_rejected(response):
 
 def test_successful_empty_write_result_is_accepted():
     assert unwrap_response({"code": 0, "result": {"code": 0, "result": {}}}, bypass=True) == {}
+
+
+def test_observed_acknowledgment_without_data_is_accepted_only_for_writes():
+    # Synthetic envelope matching the live acknowledgment's non-identifying shape.
+    acknowledgment = {"code": 0, "result": {"code": 0, "traceId": "synthetic"}}
+    assert unwrap_response(acknowledgment, bypass=True, write=True) == {}
+    with pytest.raises(ApiError):
+        unwrap_response(acknowledgment, bypass=True)
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        {"code": -1, "result": {"code": 0}},
+        {"code": 0, "result": {"code": -1}},
+        {"code": 0, "result": {}},
+        {"code": 0, "result": {"code": 0, "result": None}},
+        {"code": 0, "result": {"code": 0, "result": "invalid"}},
+        {"code": False, "result": {"code": 0}},
+        {"code": 0, "result": {"code": False}},
+        {"code": 0, "result": {"code": 0.0}},
+    ],
+)
+def test_write_acknowledgments_still_reject_errors_and_malformed_results(response):
+    with pytest.raises(ApiError):
+        unwrap_response(response, bypass=True, write=True)
+
+
+async def test_command_accepts_observed_acknowledgment():
+    session = FakeSession({"code": 0, "result": {"code": 0}})
+    client = ExtendedClient(make_manager(), session, read_only=False)
+    await client.command(PURIFIER, "display", True)
 
 
 class FakeResponse:

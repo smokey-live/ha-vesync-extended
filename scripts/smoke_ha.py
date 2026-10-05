@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 async def main():
     from homeassistant.components.fan import FanEntityFeature
     from homeassistant.core import HomeAssistant
-    from homeassistant.exceptions import ConfigEntryAuthFailed
+    from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 
     from custom_components.vesync_extended.api import (
         AuthenticationError,
@@ -160,9 +160,44 @@ async def main():
         pass
     else:
         raise AssertionError("Expired authentication did not trigger reauthentication")
+
+    original_display = DeviceState(available=True, display=False, power=True, mode="manual")
+    changed_display = DeviceState(available=True, display=True, power=True, mode="manual")
+    writer = SimpleNamespace(
+        command=AsyncMock(),
+        get_state=AsyncMock(side_effect=[original_display, changed_display]),
+    )
+    poller.client = writer
+    poller.async_set_updated_data({device.cid: original_display})
+    with patch("custom_components.vesync_extended.coordinator.asyncio.sleep", AsyncMock()):
+        await poller.async_control(device, "display", True)
+    writer.command.assert_awaited_once_with(device, "display", True)
+    assert writer.get_state.await_count == 2 and poller.data[device.cid].display is True
+
+    writer.command.reset_mock()
+    writer.get_state = AsyncMock(return_value=original_display)
+    with patch("custom_components.vesync_extended.coordinator.asyncio.sleep", AsyncMock()):
+        try:
+            await poller.async_control(device, "display", True)
+        except HomeAssistantError as err:
+            assert "did not confirm" in str(err)
+        else:
+            raise AssertionError("Unchanged display was reported as a successful command")
+    writer.command.assert_awaited_once()
+    assert writer.get_state.await_count == 4 and poller.data[device.cid].display is False
+
+    writer.command = AsyncMock(side_effect=ReadOnlyError("Controls disabled"))
+    writer.get_state.reset_mock()
+    try:
+        await poller.async_control(device, "display", True)
+    except HomeAssistantError:
+        pass
+    else:
+        raise AssertionError("Read-only control failure was ignored")
+    writer.get_state.assert_not_awaited()
     print(
         "HA imports, saved-account privacy, entity state, read-only, "
-        "offline isolation, reauth passed"
+        "offline isolation, reauth, delayed display confirmation passed"
     )
 
 
