@@ -158,6 +158,8 @@ def test_light_command_changes_only_requested_settings(settings, expected):
         {},
         {"on": 1},
         {"on": True, "extra": 1},
+        {"on": True, "level": 1},
+        {"on": True, "level": 2},
         {"on": True, "level": True},
         {"on": True, "level": 3},
         {"on": True, "brightness": 50},

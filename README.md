@@ -4,20 +4,25 @@ Experimental support for newer Levoit products that pyvesync 3.4.2 does not disc
 This custom integration has its own `vesync_extended` domain and can run alongside
 Home Assistant's official VeSync integration. It selects only the exact models below.
 
-**Status: development preview. Version 0.1.4 has verified live status reads in
+**Status: development preview. Version 0.1.5 has verified live status reads in
 Home Assistant 2026.9.4 for two `LAP-P501S-WUSR` purifiers and one `LUH-N451S-WUS`
 humidifier. Power-off and power-on were physically confirmed on one US purifier
 and the humidifier. All three purifier speeds and a humidifier target change
-were confirmed in the app and later cloud readings. Controls remain experimental; see the
+were confirmed in the app and later cloud readings. Night-light on/off,
+brightness and visible warm/cool changes were physically confirmed on the
+humidifier. Controls remain experimental; see the
 [live validation record](docs/VALIDATION.md). Read-only mode is enabled by default.
 Protocol tests use synthetic fixtures.**
 
 Version 0.1.5 adds a separate NeoClassic 450S **Night light** entity with on/off,
-brightness and tunable-white temperature (1700–5500 K). The effect selector
-chooses the device's saved **L1** or **L2** brightness preset; the brightness slider
-edits only the selected preset. It does not switch humidification on or off.
-Initial direct-command tests physically confirmed lamp off/on and increased
-brightness. See the validation record for each test's evidence and limitations.
+brightness and tunable-white temperature (1700–5500 K). The brightness slider edits the
+preset reported active by the cloud, while `brightness_l1`, `brightness_l2` and
+`active_preset` expose the saved readings. Selecting L1/L2 alone was accepted but
+had no physical effect, so a preset selector is not offered. It does not switch humidification on or off.
+Live Home Assistant brightness/temperature commands changed the lamp and the
+app, but cloud readings retained earlier values beyond the short confirmation
+window. Home Assistant can therefore report a confirmation error after a
+successful physical change. Check the lamp/app before repeating a command.
 
 Version 0.1.4 fixes the three-speed percentage conversion using Home Assistant's
 standard 33%, 66% and 100% levels. Initial display tests also found delayed cloud
@@ -26,7 +31,7 @@ status and a command acknowledgment issue corrected in 0.1.3.
 | Product | VeSync cloud identifier | Readings and candidate controls |
 | --- | --- | --- |
 | Vital Pet Pro air purifier | `LAP-P501S-WUSR`, `LAP-P501S-AUSR` | Power, three speeds, manual/auto/sleep/pet, PM2.5, filter life, display, child lock |
-| NeoClassic 450S cool-mist humidifier | `LUH-N451S-WUS` | Power, manual/auto/sleep, current and target humidity, display, mist-level reading, tunable-white night light with L1/L2 presets |
+| NeoClassic 450S cool-mist humidifier | `LUH-N451S-WUS` | Power, manual/auto/sleep, current and target humidity, display, mist-level reading, tunable-white night light, saved L1/L2 readings |
 
 Product labels may omit the region suffix. The integration matches the identifier
 returned by the cloud, rather than assuming that similarly named products share a protocol.

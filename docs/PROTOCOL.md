@@ -92,16 +92,20 @@ do not match the light schema observed on this NeoClassic unit.
 | Requested light setting | Method | Data |
 | --- | --- | --- |
 | On/off | `setLightStatus` | `nightLightSwitch: 0/1`, `colorMode: white` |
-| Select L1/L2 | `setLightStatus` | Same switch/color fields, `nightLightLevel: 1/2` |
 | L1 brightness | `setLightStatus` | Same switch/color fields, `nightLightLevel: 1`, `brightness: 1..100` |
 | L2 brightness | `setLightStatus` | Same switch/color fields, `nightLightLevel: 2`, `brightnessLevel2: 1..100` |
 | White temperature | `setLightStatus` | Same switch/color fields, `colorTemperature: 1700..5500` in 100 K steps |
 
 These fields may be combined in one command. Only requested settings are sent.
 On/off never copies brightness or temperature from an older status response.
-Brightness requires a known or explicitly selected preset and leaves the other
-preset unchanged. Home Assistant's effect selector represents L1/L2; this is not
-an RGB or animated light effect. Temperature requests are rounded to 100 K.
+Brightness requires a known preset and leaves the other preset unchanged.
+Home Assistant uses the cloud-reported active preset for its brightness slider.
+The app's saved L1/L2 brightness and active-preset values are available as
+readings. A preset-only command with `nightLightLevel` was accepted but left the
+physical lamp at the previous brightness; this shape is now rejected and no
+preset/effect selector is exposed. Combined preset/brightness commands did
+physically change the lamp during investigation, but preset-only selection
+requires further protocol evidence. Temperature requests are rounded to 100 K.
 Status confirmation compares only the requested values, with the same bounded
 read retries as display control. A stale response can report a confirmation
 failure after the physical lamp has already changed; commands are not resent.

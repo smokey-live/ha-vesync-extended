@@ -182,6 +182,8 @@ def command_payload(device: Device, action: str, value: Any) -> tuple[str, dict]
         if "level" in value:
             if type(value["level"]) is not int or value["level"] not in (1, 2):
                 raise ValueError("Light preset must be 1 or 2")
+            if "brightness" not in value:
+                raise ValueError("Preset-only selection is not verified")
             data["nightLightLevel"] = value["level"]
         if "brightness" in value:
             if type(value["brightness"]) is not int or not 1 <= value["brightness"] <= 100:

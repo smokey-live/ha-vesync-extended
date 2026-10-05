@@ -63,9 +63,51 @@ separately from cloud-state confirmation. No purifier received a setting command
 during this light investigation. Home Assistant read-only mode was disabled at
 the owner's request and will remain disabled after installation.
 
-The initial light code passes 81 synthetic protocol tests and local Ruff checks.
-Home Assistant runtime validation, installation, partial on/brightness/temperature
-tests and final restoration are pending at this checkpoint.
+Version 0.1.5 passed 81 synthetic protocol tests, Ruff checks and the official
+Home Assistant 2026.9.4 smoke test in
+[CI](https://github.com/smokey-live/ha-vesync-extended/actions/runs/37257249139).
+The smoke checks include both presets' 100 brightness round trips, temperature
+limits, unknown fields/presets, read-only enforcement and delayed confirmation.
+
+HACS downloaded the checked `fb6cc75` revision. Installed manifest, light, API
+and coordinator hashes matched that source; `ha core check` passed and Core
+restarted successfully. The integration loaded all three devices with 15
+entities, including a writable Night light entity. Read-only mode remained off.
+
+The actual Home Assistant light control turned the night light off. The UI and
+a downloaded diagnostic confirmed `night_light: false` while preserving L1 50%,
+L2 100%, selected L1 and 3000 K. Humidification remained on in `autoPro`, with its
+original target and display setting. Both purifiers retained their recorded
+power, mode, speed, display and child-lock values. A subsequent explicit Home
+Assistant light-on action completed without an error; the app retained 50% and
+3000 K.
+
+Home Assistant then requested L1 at 25% and 1700 K. The app showed those values,
+with L2 still at 100%. The owner physically confirmed a dimmer, warmer light
+while the humidifier continued misting. The action reported that the device did
+not confirm the requested night-light setting: immediate and later diagnostics
+still showed the earlier 50% and 3000 K. This verifies the physical command, but
+not prompt cloud-state confirmation. A separate read-only `getLightStatus`
+candidate, known from pyvesync's bulb protocol, was rejected by the humidifier;
+it is not added to this integration.
+
+Home Assistant next requested L2 at 75% and 5500 K. The app highlighted L2,
+showed 75% and 5500 K, and retained L1 at 25%. The owner physically confirmed a
+brighter, cooler light. The short confirmation window again expired. These tests
+verify visible warm/cool changes, not measured color-temperature accuracy.
+A preset-only L1 command completed without an action error, but the app stayed
+on L2 and the owner confirmed the physical light remained bright. Because the
+cloud already reported L1, this also shows that matching an earlier status value
+cannot establish that a new command took effect. The final 0.1.5 source removes
+the preset selector and rejects preset-only commands. Its brightness slider
+uses the cloud-reported active preset; wait for current readings after changing
+presets in the app. Only explicit combined preset/brightness commands were used
+to restore the original saved values. The app confirmed L2 back at 100%, then
+L1 selected at 50% and 3000 K. The restoration commands also encountered the
+short confirmation-window error. No humidifier power, mode, target or display
+command was sent during the light checks, and neither purifier received a
+setting command. The revised source passed 83 synthetic protocol tests and Ruff;
+the revised Home Assistant runtime check and post-install diagnostics are pending.
 
 ### Power tests — 2026-10-04
 
@@ -216,7 +258,7 @@ These checks do not replace live control testing.
 | --- | --- | --- | --- | --- |
 | `LAP-P501S-WUSR` | Passed on two units | Power physically verified on one; three speeds verified in app/cloud; display partial | Passed | Auto Balanced restored with official app; preset commands and child lock untested; reporting delay unresolved |
 | `LAP-P501S-AUSR` | Not tested | Not tested | Not tested | No owned unit available |
-| `LUH-N451S-WUS` | Passed before and after power tests | Power physically verified; target change/restoration and display verified in app/cloud | Passed | Mode commands and mist scales untested; physical display unconfirmed; reporting delay unresolved |
+| `LUH-N451S-WUS` | Passed before and after power tests | Power, lamp on/off and visible dim/warm/bright/cool changes physically verified; target and display verified in app/cloud | Passed | Mode commands and mist scales untested; physical display unconfirmed; reporting delay unresolved |
 
 Do not publish credentials, tokens, names, MAC addresses, cloud IDs, home addresses,
 network captures or raw authentication/device-list responses. A reviewed summary

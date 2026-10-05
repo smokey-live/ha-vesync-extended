@@ -6,14 +6,11 @@ from homeassistant.components.light import (
     ATTR_EFFECT,
     ColorMode,
     LightEntity,
-    LightEntityFeature,
 )
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import MAX_LIGHT_KELVIN, MIN_LIGHT_KELVIN
 from .entity import VeSyncExtendedEntity
-
-PRESETS = {"L1": 1, "L2": 2}
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -35,8 +32,6 @@ class VeSyncExtendedLight(VeSyncExtendedEntity, LightEntity):
     _attr_color_mode = ColorMode.COLOR_TEMP
     _attr_min_color_temp_kelvin = MIN_LIGHT_KELVIN
     _attr_max_color_temp_kelvin = MAX_LIGHT_KELVIN
-    _attr_supported_features = LightEntityFeature.EFFECT
-    _attr_effect_list = list(PRESETS)
 
     def __init__(self, coordinator, device):
         super().__init__(coordinator, device, "night_light")
@@ -66,25 +61,22 @@ class VeSyncExtendedLight(VeSyncExtendedEntity, LightEntity):
         return self.device_state.light_kelvin
 
     @property
-    def effect(self):
-        level = self.device_state.light_level
-        return f"L{level}" if level in (1, 2) else None
-
-    @property
     def extra_state_attributes(self):
         return {
             "brightness_l1": self.device_state.light_brightness,
             "brightness_l2": self.device_state.light_brightness_level2,
+            "active_preset": (
+                f"L{self.device_state.light_level}"
+                if self.device_state.light_level in (1, 2)
+                else None
+            ),
         }
 
     async def async_turn_on(self, **kwargs):
         value = {"on": True}
         level = self.device_state.light_level
         if ATTR_EFFECT in kwargs:
-            effect = kwargs[ATTR_EFFECT]
-            if effect not in PRESETS:
-                raise ValueError("Unsupported night-light preset")
-            level = value["level"] = PRESETS[effect]
+            raise ValueError("Preset selection is not supported; use the VeSync app")
         if ATTR_BRIGHTNESS in kwargs:
             brightness = kwargs[ATTR_BRIGHTNESS]
             if type(brightness) is not int or not 0 <= brightness <= 255:

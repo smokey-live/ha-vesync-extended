@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 async def main():
     from homeassistant.components.fan import FanEntityFeature
-    from homeassistant.components.light import ColorMode, LightEntityFeature
+    from homeassistant.components.light import ColorMode
     from homeassistant.core import HomeAssistant
     from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 
@@ -163,9 +163,9 @@ async def main():
     assert light.color_mode == ColorMode.COLOR_TEMP
     assert light.supported_color_modes == {ColorMode.COLOR_TEMP}
     assert light.min_color_temp_kelvin == 1700 and light.max_color_temp_kelvin == 5500
-    assert light.color_temp_kelvin == 3000 and light.effect == "L1"
-    assert light.supported_features == LightEntityFeature.EFFECT
-    assert light.effect_list == ["L1", "L2"]
+    assert light.color_temp_kelvin == 3000
+    assert light.supported_features == 0 and light.effect_list is None
+    assert light.extra_state_attributes["active_preset"] == "L1"
     await light.async_turn_off()
     assert calls[-1] == (humidifier.cid, "light", {"on": False})
     await light.async_turn_on()
@@ -182,14 +182,13 @@ async def main():
                 "light",
                 {"on": True, "level": level, "brightness": percentage},
             )
-    await light.async_turn_on(brightness=64, effect="L1", color_temp_kelvin=3049)
+    lamp_state.light_level = 1
+    await light.async_turn_on(brightness=64, color_temp_kelvin=3049)
     assert calls[-1] == (
         humidifier.cid,
         "light",
         {"on": True, "level": 1, "brightness": 25, "kelvin": 3000},
     )
-    await light.async_turn_on(effect="L2")
-    assert calls[-1] == (humidifier.cid, "light", {"on": True, "level": 2})
     await light.async_turn_on(brightness=0)
     assert calls[-1] == (humidifier.cid, "light", {"on": False})
     for kwargs in (
@@ -199,6 +198,8 @@ async def main():
         {"color_temp_kelvin": 1600},
         {"color_temp_kelvin": 5600},
         {"effect": "Rainbow"},
+        {"effect": "L1"},
+        {"effect": "L2", "brightness": 191},
     ):
         count = len(calls)
         try:
@@ -209,7 +210,7 @@ async def main():
             raise AssertionError("Unsupported light request was accepted")
         assert len(calls) == count
     lamp_state.light_level = None
-    assert light.brightness is None and light.effect is None
+    assert light.brightness is None and light.extra_state_attributes["active_preset"] is None
     count = len(calls)
     try:
         await light.async_turn_on(brightness=128)
