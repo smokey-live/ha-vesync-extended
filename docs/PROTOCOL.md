@@ -34,8 +34,10 @@ between entering manual mode and selecting other presets.
 The candidate `_packFileSignature` algorithm and `_signOsInfo: Android` header
 are applied only to this integration's purifier Bypass V2 requests. Authentication
 and other integrations are unchanged. The signature is regenerated with each
-request and after a token refresh. Live status requests succeeded on two US units;
-write requests and live token-refresh behavior remain unverified.
+request and after a token refresh. Live status requests succeeded on two US units.
+Initial display commands were accepted; the physical display changed on one unit
+and a later status read changed on the second. Other writes and live token-refresh
+behavior remain unverified.
 
 ## NeoClassic 450S
 
@@ -107,3 +109,12 @@ missing inner envelopes, nonzero codes, and explicit null/malformed results.
 Display controls read status again for confirmation, retrying reads after 2, 4
 and 6 seconds when necessary. Commands are never resent by that confirmation loop.
 The display test and restoration outcomes are recorded in [validation](VALIDATION.md).
+
+Fresh status requests during these tests continued to return the previous display
+value beyond that confirmation window, before later reads returned the new value.
+The official app could also retain an earlier display setting. This establishes
+that command acknowledgment, app indication, physical observation and status-read
+confirmation are distinct evidence. It does not establish a fixed latency or the
+cause of the delayed reporting. `screenState` and `screenSwitch` eventually agreed
+on the inspected purifier readings; the parser continues to use `screenSwitch`.
+No undocumented display-preference command was sent.

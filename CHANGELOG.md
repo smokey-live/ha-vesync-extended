@@ -7,6 +7,8 @@
 - Confirm display changes with bounded fresh status reads, without resending the command.
 - Include the documented `id: 0` in NeoClassic display commands.
 - Test delayed confirmation, unchanged state, read-only failure, and malformed acknowledgments.
+- Record initial live display tests and cloud readings that lag beyond the
+  confirmation window; retain the experimental-control warning.
 
 ## 0.1.2 — 2026-10-04
 
@@ -34,5 +36,6 @@
 - Add protocol tests and a Home Assistant 2026.9.4 import/entity smoke test in CI.
 - Withhold mist-level writes, lighting and scene/music features pending live verification.
 
-This is a development preview. Live status reads have been verified for the owned
-US models; device-setting commands and the Australian purifier variant remain untested.
+This is a development preview. Live status reads and initial display tests have
+been performed on the owned US models. Other device-setting commands and the
+Australian purifier variant remain untested.

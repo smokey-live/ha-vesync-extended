@@ -4,10 +4,12 @@ Experimental support for newer Levoit products that pyvesync 3.4.2 does not disc
 This custom integration has its own `vesync_extended` domain and can run alongside
 Home Assistant's official VeSync integration. It selects only the exact models below.
 
-**Status: development preview. Version 0.1.2 has verified live status reads in
+**Status: development preview. Version 0.1.3 has verified live status reads in
 Home Assistant 2026.9.4 for two `LAP-P501S-WUSR` purifiers and one `LUH-N451S-WUS`
-humidifier. Device-setting commands remain unverified. Read-only mode is enabled
-by default. Protocol tests use synthetic fixtures.**
+humidifier. Initial display tests found delayed cloud status and a command
+acknowledgment issue corrected in 0.1.3. Controls remain experimental; see the
+[live validation record](docs/VALIDATION.md). Read-only mode is enabled by default.
+Protocol tests use synthetic fixtures.**
 
 | Product | VeSync cloud identifier | Readings and candidate controls |
 | --- | --- | --- |
@@ -98,6 +100,12 @@ Record behavior changes in [CHANGELOG.md](CHANGELOG.md).
 - The integration uses the VeSync cloud API; it does not provide local-only control.
 - An offline or incompatible device affects its own entities. A successful cloud
   response with an inner device error is treated as a failure.
+- A display command can be accepted and take effect before the cloud reports its
+  new state. Version 0.1.3 checks immediately and after 2, 4 and 6 seconds. If it
+  reports that the device did not confirm the setting, check the physical device
+  and wait for normal polling before repeating the command. Live tests observed
+  delayed readings beyond this confirmation window. An acknowledgment alone is
+  not proof of the final device state.
 - Removing the VeSync Extended config entry unloads its entities. To remove the
   files, move `custom_components/vesync_extended` outside `custom_components` and
   restart Home Assistant. The official VeSync entry is independent.
