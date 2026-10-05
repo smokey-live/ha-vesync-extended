@@ -53,6 +53,52 @@ on/off actions were used for restoration rather than toggling an outdated readin
 These observations verify the physical power behavior, not immediate cloud-state
 confirmation or a guaranteed reporting delay.
 
+### Target-humidity test — 2026-10-04
+
+Home Assistant changed the `LUH-N451S-WUS` target from 59% to 60%. The official
+app showed 60%, and a separate read-only client later obtained a fresh device
+status with `targetHumidity: 60` and `workMode: autoPro`. The first Home Assistant
+diagnostic download still showed 59%. This confirms the command and illustrates
+that the app and API can report the changed target at different times.
+
+An explicit Home Assistant command restored 59%, and the app showed that original
+target again. After installing 0.1.4 and restarting Core, downloaded diagnostics
+also confirmed 59%, power on, `autoPro`, display off and no device error. No mode,
+mist-level or schedule command was sent during this test.
+
+### Three-speed test — 2026-10-04
+
+After installing 0.1.4, Home Assistant controlled one `LAP-P501S-WUSR` through
+high, medium and low in that order. Each selection appeared in the official app
+as Manual mode with the corresponding numbered speed. Separate downloaded
+diagnostics later confirmed `workMode: manual` and levels 3, 2 and 1 respectively.
+
+| Home Assistant selection | App speed | Later cloud speed | Home Assistant percentage |
+| --- | --- | --- | --- |
+| High (100% service request) | 3 | 3 | 100% |
+| Medium (fan control) | 2 | 2 | 66% |
+| Low (fan control) | 1 | 1 | 33% |
+
+The medium and low selections were tested through Home Assistant's actual fan
+control. The app updated before Home Assistant's reported percentage; a selected
+radio button alone was not treated as confirmation. No command was resent while
+waiting for the later status. Speed evidence is from app and cloud readings;
+independent physical airflow confirmation was not recorded for these steps.
+
+The official app restored the original Auto Balanced mode, with display off,
+control lock off and mute unchanged. Using the official app for this restoration
+does not verify how a Home Assistant `auto` command maps to `odorShieldBalanced`.
+The second purifier received no setting commands and retained its recorded
+power, mode, display and child-lock values throughout the speed tests.
+
+Final downloaded diagnostics confirmed version 0.1.4 with read-only mode
+re-enabled, all three devices available and no device error. The tested purifier
+returned to `odorShieldBalanced`, power on, level 1, display off and child lock
+off. The humidifier retained `autoPro`, power on, target 59% and display off.
+The second purifier's recorded power, mode, speed, display and child lock also
+matched its baseline. Advanced preset commands, child lock and mist-level writes
+remain untested.
+
 ### Fan-speed conversion regression — 0.1.4
 
 Code inspection found that level 2 reported 67% but a 67% request selected level 3.
@@ -61,6 +107,13 @@ round-trip to the same level, along with the boundaries between levels, off,
 unknown state and out-of-range input. Version 0.1.4 uses Home Assistant's standard
 ordered-list helpers and reports 33%, 66% and 100%. These synthetic checks do not
 establish live speed-control behavior.
+
+Version 0.1.4 passed 53 protocol tests, Ruff checks and the Home Assistant 2026.9.4
+smoke test, including the speed conversion checks, in
+[CI](https://github.com/smokey-live/ha-vesync-extended/actions/runs/37254643514).
+It was installed through HACS, passed `ha core check`, and loaded all three
+supported devices after a Core restart. Downloaded runtime diagnostics confirmed
+0.1.4, each device available and no device error.
 
 ### Display tests — 2026-10-04
 
@@ -92,13 +145,14 @@ Home Assistant status. Physical verification of the humidifier display was not o
 Final downloaded diagnostics confirmed version 0.1.3, read-only mode re-enabled,
 all three devices available, no reported device errors and display values matching
 each unit's recorded baseline. The humidifier remained under its existing schedule.
-No power, speed, mode, humidity or child-lock test has been claimed as successful.
+At the end of these display-only tests, no power, speed, mode, humidity or
+child-lock test had been claimed as successful.
 
 These are partial control results. Version 0.1.3 can report "Device did not confirm
 the requested display setting" despite a later display change. The cause and
 maximum duration of the delayed reporting are unresolved. Neither an immediate
 UI toggle nor a successful acknowledgment alone is treated as a confirmed change.
-Other commands remain untested.
+Other commands were untested at this stage.
 
 Version 0.1.3 passed 53 protocol tests, Ruff checks and the Home Assistant 2026.9.4
 smoke test in [CI](https://github.com/smokey-live/ha-vesync-extended/actions/runs/37251618362).
@@ -131,9 +185,9 @@ These checks do not replace live control testing.
 
 | Model | Status | Control | Restart | Notes |
 | --- | --- | --- | --- | --- |
-| `LAP-P501S-WUSR` | Passed on two units | Display partially verified | Passed | One unit physically observed; second changed in later status; delayed confirmation unresolved |
+| `LAP-P501S-WUSR` | Passed on two units | Power physically verified on one; three speeds verified in app/cloud; display partial | Passed | Auto Balanced restored with official app; preset commands and child lock untested; reporting delay unresolved |
 | `LAP-P501S-AUSR` | Not tested | Not tested | Not tested | No owned unit available |
-| `LUH-N451S-WUS` | Passed before and after scheduled power-on | Display verified in app and later status | Passed | Physical display unconfirmed; separate schedule ran; delayed reporting and mist scales unresolved |
+| `LUH-N451S-WUS` | Passed before and after power tests | Power physically verified; target change/restoration and display verified in app/cloud | Passed | Mode commands and mist scales untested; physical display unconfirmed; reporting delay unresolved |
 
 Do not publish credentials, tokens, names, MAC addresses, cloud IDs, home addresses,
 network captures or raw authentication/device-list responses. A reviewed summary

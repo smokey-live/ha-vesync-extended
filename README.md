@@ -4,17 +4,17 @@ Experimental support for newer Levoit products that pyvesync 3.4.2 does not disc
 This custom integration has its own `vesync_extended` domain and can run alongside
 Home Assistant's official VeSync integration. It selects only the exact models below.
 
-**Status: development preview. Version 0.1.3 has verified live status reads in
+**Status: development preview. Version 0.1.4 has verified live status reads in
 Home Assistant 2026.9.4 for two `LAP-P501S-WUSR` purifiers and one `LUH-N451S-WUS`
-humidifier. Initial display tests found delayed cloud status and a command
-acknowledgment issue corrected in 0.1.3. Controls remain experimental; see the
+humidifier. Power-off and power-on were physically confirmed on one US purifier
+and the humidifier. All three purifier speeds and a humidifier target change
+were confirmed in the app and later cloud readings. Controls remain experimental; see the
 [live validation record](docs/VALIDATION.md). Read-only mode is enabled by default.
 Protocol tests use synthetic fixtures.**
 
-Version 0.1.4 fixes the three-speed percentage conversion. Power-off and power-on
-commands have also been physically confirmed on one US purifier and one
-NeoClassic 450S. Other controls still require the individual validation described
-below.
+Version 0.1.4 fixes the three-speed percentage conversion using Home Assistant's
+standard 33%, 66% and 100% levels. Initial display tests also found delayed cloud
+status and a command acknowledgment issue corrected in 0.1.3.
 
 | Product | VeSync cloud identifier | Readings and candidate controls |
 | --- | --- | --- |

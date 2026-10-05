@@ -45,8 +45,9 @@ are applied only to this integration's purifier Bypass V2 requests. Authenticati
 and other integrations are unchanged. The signature is regenerated with each
 request and after a token refresh. Live status requests succeeded on two US units.
 Initial display commands were accepted; the physical display changed on one unit
-and a later status read changed on the second. Other writes and live token-refresh
-behavior remain unverified.
+and a later status read changed on the second. Subsequent power tests were
+physically confirmed on one US unit; see the validation record for individual
+control evidence. Live token-refresh behavior remains unverified.
 
 ## NeoClassic 450S
 

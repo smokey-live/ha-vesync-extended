@@ -8,7 +8,10 @@
 - Check each speed's round trip, conversion boundaries, off and invalid requests
   in the Home Assistant 2026.9.4 smoke test.
 - Record physically confirmed power-off and power-on tests on one US purifier
-  and one NeoClassic 450S. Other control outcomes are documented separately.
+  and one NeoClassic 450S, plus an app- and cloud-confirmed target-humidity
+  change and restoration. Other control outcomes are documented separately.
+- Verify all three purifier speeds through Home Assistant, the official app and
+  later cloud readings; restore Auto Balanced through the official app.
 
 ## 0.1.3 — 2026-10-04
 
@@ -46,6 +49,6 @@
 - Add protocol tests and a Home Assistant 2026.9.4 import/entity smoke test in CI.
 - Withhold mist-level writes, lighting and scene/music features pending live verification.
 
-This is a development preview. Live status reads and initial display tests have
-been performed on the owned US models. Other device-setting commands and the
-Australian purifier variant remain untested.
+This is a development preview. See the validation record for individual control
+outcomes on the owned US models. Additional controls and the Australian purifier
+variant still require verification.
