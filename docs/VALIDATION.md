@@ -107,7 +107,20 @@ L1 selected at 50% and 3000 K. The restoration commands also encountered the
 short confirmation-window error. No humidifier power, mode, target or display
 command was sent during the light checks, and neither purifier received a
 setting command. The revised source passed 83 synthetic protocol tests and Ruff;
-the revised Home Assistant runtime check and post-install diagnostics are pending.
+the revised Home Assistant 2026.9.4 smoke test also passed in
+[CI](https://github.com/smokey-live/ha-vesync-extended/actions/runs/37258318930),
+including refusal of preset-only controls.
+
+HACS then installed the checked `6acdecc` source. Installed file hashes matched
+that revision; `ha core check` passed and the integration loaded after a Core
+restart. Home Assistant's light view showed brightness and temperature controls
+without an effect selector, at 50% and 3000 K. Final downloaded diagnostics
+confirmed version 0.1.5, read-only mode off, all three devices available and no
+device errors. The light was on with L1 selected at 50%, L2 saved at 100% and
+3000 K. Humidifier power, `autoPro`, target and display matched the baseline;
+both purifiers' recorded power, mode, speed, display and child-lock settings also
+matched. These final restored readings do not establish that the intermediate
+brightness/temperature changes were promptly reported by the cloud.
 
 ### Power tests — 2026-10-04
 

@@ -15,10 +15,11 @@ humidifier. Controls remain experimental; see the
 Protocol tests use synthetic fixtures.**
 
 Version 0.1.5 adds a separate NeoClassic 450S **Night light** entity with on/off,
-brightness and tunable-white temperature (1700–5500 K). The brightness slider edits the
-preset reported active by the cloud, while `brightness_l1`, `brightness_l2` and
+brightness and tunable-white temperature (1700–5500 K). The brightness slider
+edits the preset reported active by the cloud, while `brightness_l1`, `brightness_l2` and
 `active_preset` expose the saved readings. Selecting L1/L2 alone was accepted but
-had no physical effect, so a preset selector is not offered. It does not switch humidification on or off.
+had no physical effect, so a preset selector is not offered. Light control is
+independent of humidification.
 Live Home Assistant brightness/temperature commands changed the lamp and the
 app, but cloud readings retained earlier values beyond the short confirmation
 window. Home Assistant can therefore report a confirmation error after a
