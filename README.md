@@ -12,6 +12,13 @@ were confirmed in the app and later cloud readings. Controls remain experimental
 [live validation record](docs/VALIDATION.md). Read-only mode is enabled by default.
 Protocol tests use synthetic fixtures.**
 
+Version 0.1.5 adds a separate NeoClassic 450S **Night light** entity with on/off,
+brightness and tunable-white temperature (1700–5500 K). The effect selector
+chooses the device's saved **L1** or **L2** brightness preset; the brightness slider
+edits only the selected preset. It does not switch humidification on or off.
+Initial direct-command tests physically confirmed lamp off/on and increased
+brightness. See the validation record for each test's evidence and limitations.
+
 Version 0.1.4 fixes the three-speed percentage conversion using Home Assistant's
 standard 33%, 66% and 100% levels. Initial display tests also found delayed cloud
 status and a command acknowledgment issue corrected in 0.1.3.
@@ -19,7 +26,7 @@ status and a command acknowledgment issue corrected in 0.1.3.
 | Product | VeSync cloud identifier | Readings and candidate controls |
 | --- | --- | --- |
 | Vital Pet Pro air purifier | `LAP-P501S-WUSR`, `LAP-P501S-AUSR` | Power, three speeds, manual/auto/sleep/pet, PM2.5, filter life, display, child lock |
-| NeoClassic 450S cool-mist humidifier | `LUH-N451S-WUS` | Power, manual/auto/sleep, current and target humidity, display, mist-level reading |
+| NeoClassic 450S cool-mist humidifier | `LUH-N451S-WUS` | Power, manual/auto/sleep, current and target humidity, display, mist-level reading, tunable-white night light with L1/L2 presets |
 
 Product labels may omit the region suffix. The integration matches the identifier
 returned by the cloud, rather than assuming that similarly named products share a protocol.
@@ -30,7 +37,7 @@ Status reads also recognize the observed `odorShieldBalanced` purifier mode and
 `cloud_mode` attribute. They are not added to the selectable modes or command
 allowlist, because a status response alone does not verify how to set that mode.
 
-Mist-level writes, lighting, music, scenes, schedules, firmware updates and filter
+Mist-level writes, music, scenes, schedules, firmware updates and filter
 resets are not implemented. The reported physical and virtual mist-level ranges
 need verification before exposing a mist control. The NeoClassic 450S has no warm-mist control.
 
@@ -111,6 +118,12 @@ Record behavior changes in [CHANGELOG.md](CHANGELOG.md).
   and wait for normal polling before repeating the command. Live tests observed
   delayed readings beyond this confirmation window. An acknowledgment alone is
   not proof of the final device state.
+- Night-light commands use the same bounded confirmation reads. The lamp's state
+  and sliders show actual cloud readings, which can lag behind a physical change.
+  Allow polling to catch up before making another preset/brightness adjustment.
+  An on/off request leaves saved brightness and temperature unchanged; a brightness
+  request changes only its specified preset. White temperature is rounded to the
+  app's 100 K steps. RGB colors, transitions and blinking effects are not exposed.
 - Removing the VeSync Extended config entry unloads its entities. To remove the
   files, move `custom_components/vesync_extended` outside `custom_components` and
   restart Home Assistant. The official VeSync entry is independent.

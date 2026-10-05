@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 async def main():
     from homeassistant.components.fan import FanEntityFeature
+    from homeassistant.components.light import ColorMode, LightEntityFeature
     from homeassistant.core import HomeAssistant
     from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 
@@ -29,6 +30,7 @@ async def main():
     from custom_components.vesync_extended.coordinator import VeSyncExtendedCoordinator
     from custom_components.vesync_extended.fan import VeSyncExtendedFan
     from custom_components.vesync_extended.humidifier import VeSyncExtendedHumidifier
+    from custom_components.vesync_extended.light import VeSyncExtendedLight
     from custom_components.vesync_extended.sensor import VeSyncExtendedSensor
     from custom_components.vesync_extended.switch import VeSyncExtendedSwitch
 
@@ -92,7 +94,9 @@ async def main():
         hass=hass,
         config_entry=None,
         last_update_success=True,
-        client=SimpleNamespace(read_only=False),
+        client=SimpleNamespace(
+            read_only=False, devices={device.cid: device, humidifier.cid: humidifier}
+        ),
         data={
             device.cid: DeviceState(available=True, power=True, mode="manual", speed=3, pm25=12),
             humidifier.cid: DeviceState(
@@ -148,10 +152,90 @@ async def main():
     assert humid.extra_state_attributes["cloud_mode"] == "autoPro"
     assert "odorShieldBalanced" not in fan.preset_modes
     assert "autoPro" not in humid.available_modes
+    lamp_state = coordinator.data[humidifier.cid]
+    lamp_state.night_light = True
+    lamp_state.light_brightness = 50
+    lamp_state.light_brightness_level2 = 75
+    lamp_state.light_level = 1
+    lamp_state.light_kelvin = 3000
+    light = VeSyncExtendedLight(coordinator, humidifier)
+    assert light.available and light.is_on and light.brightness == 128
+    assert light.color_mode == ColorMode.COLOR_TEMP
+    assert light.supported_color_modes == {ColorMode.COLOR_TEMP}
+    assert light.min_color_temp_kelvin == 1700 and light.max_color_temp_kelvin == 5500
+    assert light.color_temp_kelvin == 3000 and light.effect == "L1"
+    assert light.supported_features == LightEntityFeature.EFFECT
+    assert light.effect_list == ["L1", "L2"]
+    await light.async_turn_off()
+    assert calls[-1] == (humidifier.cid, "light", {"on": False})
+    await light.async_turn_on()
+    assert calls[-1] == (humidifier.cid, "light", {"on": True})
+    # Every cloud brightness value should round-trip through HA's 1..255 scale.
+    for level in (1, 2):
+        lamp_state.light_level = level
+        for percentage in range(1, 101):
+            key = "light_brightness" if level == 1 else "light_brightness_level2"
+            setattr(lamp_state, key, percentage)
+            await light.async_turn_on(brightness=light.brightness)
+            assert calls[-1] == (
+                humidifier.cid,
+                "light",
+                {"on": True, "level": level, "brightness": percentage},
+            )
+    await light.async_turn_on(brightness=64, effect="L1", color_temp_kelvin=3049)
+    assert calls[-1] == (
+        humidifier.cid,
+        "light",
+        {"on": True, "level": 1, "brightness": 25, "kelvin": 3000},
+    )
+    await light.async_turn_on(effect="L2")
+    assert calls[-1] == (humidifier.cid, "light", {"on": True, "level": 2})
+    await light.async_turn_on(brightness=0)
+    assert calls[-1] == (humidifier.cid, "light", {"on": False})
+    for kwargs in (
+        {"brightness": -1},
+        {"brightness": 256},
+        {"brightness": True},
+        {"color_temp_kelvin": 1600},
+        {"color_temp_kelvin": 5600},
+        {"effect": "Rainbow"},
+    ):
+        count = len(calls)
+        try:
+            await light.async_turn_on(**kwargs)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("Unsupported light request was accepted")
+        assert len(calls) == count
+    lamp_state.light_level = None
+    assert light.brightness is None and light.effect is None
+    count = len(calls)
+    try:
+        await light.async_turn_on(brightness=128)
+    except HomeAssistantError:
+        pass
+    else:
+        raise AssertionError("An unknown light preset was guessed")
+    assert len(calls) == count
+    lamp_state.night_light = None
+    assert not light.available
+
+    light_module = importlib.import_module("custom_components.vesync_extended.light")
+    added = []
+    await light_module.async_setup_entry(
+        hass, SimpleNamespace(runtime_data=coordinator), lambda entities: added.extend(entities)
+    )
+    assert len(added) == 1 and added[0].device is humidifier
     coordinator.data[device.cid] = DeviceState()
     assert not fan.available and fan.percentage is None
 
     coordinator.client.read_only = True
+    added.clear()
+    await light_module.async_setup_entry(
+        hass, SimpleNamespace(runtime_data=coordinator), lambda entities: added.extend(entities)
+    )
+    assert not added
     assert not VeSyncExtendedFan(coordinator, device).supported_features
     client = ExtendedClient(SimpleNamespace(), SimpleNamespace(), read_only=True)
     try:
@@ -160,6 +244,12 @@ async def main():
         pass
     else:
         raise AssertionError("Read-only mode issued a write")
+    try:
+        await client.command(humidifier, "light", {"on": True})
+    except ReadOnlyError:
+        pass
+    else:
+        raise AssertionError("Read-only mode issued a light write")
 
     class PartialClient:
         devices = {device.cid: device, humidifier.cid: humidifier}
@@ -212,6 +302,28 @@ async def main():
     writer.command.assert_awaited_once()
     assert writer.get_state.await_count == 4 and poller.data[device.cid].display is False
 
+    original_light = DeviceState(available=True, night_light=False, light_kelvin=3000)
+    changed_light = DeviceState(available=True, night_light=True, light_kelvin=3000)
+    writer.command.reset_mock()
+    writer.get_state = AsyncMock(side_effect=[original_light, changed_light])
+    poller.async_set_updated_data({humidifier.cid: original_light})
+    with patch("custom_components.vesync_extended.coordinator.asyncio.sleep", AsyncMock()):
+        await poller.async_control(humidifier, "light", {"on": True})
+    writer.command.assert_awaited_once_with(humidifier, "light", {"on": True})
+    assert writer.get_state.await_count == 2 and poller.data[humidifier.cid].night_light is True
+    writer.command.reset_mock()
+    writer.get_state = AsyncMock(return_value=changed_light)
+    with patch("custom_components.vesync_extended.coordinator.asyncio.sleep", AsyncMock()):
+        try:
+            await poller.async_control(humidifier, "light", {"on": True, "kelvin": 3500})
+        except HomeAssistantError as err:
+            assert "did not confirm" in str(err)
+        else:
+            raise AssertionError("Unchanged light temperature was reported as confirmed")
+    writer.command.assert_awaited_once()
+    assert writer.get_state.await_count == 4
+
+    poller.async_set_updated_data({device.cid: original_display})
     writer.command = AsyncMock(side_effect=ReadOnlyError("Controls disabled"))
     writer.get_state.reset_mock()
     try:
@@ -223,7 +335,7 @@ async def main():
     writer.get_state.assert_not_awaited()
     print(
         "HA imports, saved-account privacy, entity state, read-only, "
-        "offline isolation, reauth, delayed display confirmation passed"
+        "offline isolation, reauth, light scales/presets, delayed write confirmation passed"
     )
 
 

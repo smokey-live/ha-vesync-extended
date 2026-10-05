@@ -55,6 +55,127 @@ def test_humidifier_keeps_readings_when_powered_off():
     assert state.display is False and state.mist_level == 3
 
 
+def test_tunable_white_light_has_two_independent_brightness_presets():
+    state = parse_state(
+        HUMIDIFIER,
+        {
+            "powerSwitch": 0,
+            "workMode": "autoPro",
+            "humidity": 50,
+            "targetHumidity": 60,
+            "nightLight": {
+                "nightLightSwitch": 1,
+                "brightness": 25,
+                "brightnessLevel2": 75,
+                "nightLightLevel": 2,
+                "colorTemperature": 3500,
+                "unknownPrivateField": "ignored",
+            },
+        },
+    )
+    assert state.power is False and state.night_light is True
+    assert state.light_brightness == 25 and state.light_brightness_level2 == 75
+    assert state.light_level == 2 and state.light_kelvin == 3500
+    assert "ignored" not in repr(state)
+
+
+@pytest.mark.parametrize("light", [None, [], "on", {}, {"nightLightSwitch": "1"}])
+def test_unknown_light_schema_does_not_disable_humidification(light):
+    state = parse_state(
+        HUMIDIFIER,
+        {
+            "powerSwitch": 1,
+            "workMode": "auto",
+            "humidity": 50,
+            "targetHumidity": 60,
+            "nightLight": light,
+        },
+    )
+    assert state.available and state.night_light is None
+    assert state.light_brightness is None and state.light_level is None
+
+
+def test_light_rejects_invalid_optional_values_without_guessing():
+    state = parse_state(
+        HUMIDIFIER,
+        {
+            "powerSwitch": 1,
+            "workMode": "auto",
+            "humidity": 50,
+            "targetHumidity": 60,
+            "nightLight": {
+                "nightLightSwitch": 0,
+                "brightness": True,
+                "brightnessLevel2": 101,
+                "nightLightLevel": 3,
+                "colorTemperature": 6500,
+            },
+        },
+    )
+    assert state.available and state.night_light is False
+    assert state.light_brightness is None and state.light_brightness_level2 is None
+    assert state.light_level is None and state.light_kelvin is None
+
+
+@pytest.mark.parametrize(
+    "settings,expected",
+    [
+        ({"on": False}, {"nightLightSwitch": 0, "colorMode": "white"}),
+        ({"on": True}, {"nightLightSwitch": 1, "colorMode": "white"}),
+        (
+            {"on": True, "level": 1, "brightness": 25},
+            {"nightLightSwitch": 1, "colorMode": "white", "nightLightLevel": 1, "brightness": 25},
+        ),
+        (
+            {"on": True, "level": 2, "brightness": 75},
+            {
+                "nightLightSwitch": 1,
+                "colorMode": "white",
+                "nightLightLevel": 2,
+                "brightnessLevel2": 75,
+            },
+        ),
+        (
+            {"on": True, "kelvin": 1700},
+            {"nightLightSwitch": 1, "colorMode": "white", "colorTemperature": 1700},
+        ),
+        (
+            {"on": True, "kelvin": 5500},
+            {"nightLightSwitch": 1, "colorMode": "white", "colorTemperature": 5500},
+        ),
+    ],
+)
+def test_light_command_changes_only_requested_settings(settings, expected):
+    assert command_payload(HUMIDIFIER, "light", settings) == ("setLightStatus", expected)
+    with pytest.raises(ValueError):
+        command_payload(PURIFIER, "light", settings)
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        None,
+        {},
+        {"on": 1},
+        {"on": True, "extra": 1},
+        {"on": True, "level": True},
+        {"on": True, "level": 3},
+        {"on": True, "brightness": 50},
+        {"on": True, "level": 1, "brightness": 0},
+        {"on": True, "level": 1, "brightness": 101},
+        {"on": True, "level": 1, "brightness": True},
+        {"on": True, "level": 1, "brightness": 1.0},
+        {"on": True, "kelvin": 1600},
+        {"on": True, "kelvin": 5600},
+        {"on": True, "kelvin": 3050},
+        {"on": True, "kelvin": "3000"},
+    ],
+)
+def test_light_command_rejects_unverified_fields_and_ranges(settings):
+    with pytest.raises(ValueError):
+        command_payload(HUMIDIFIER, "light", settings)
+
+
 @pytest.mark.parametrize(
     "device,values,expected_mode",
     [

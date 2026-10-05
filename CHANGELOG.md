@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.5 — 2026-10-04
+
+- Add an independent NeoClassic 450S Night light entity for on/off, brightness,
+  tunable-white temperature (1700–5500 K, 100 K steps) and L1/L2 saved presets.
+- Normalize only the observed nested `nightLight` fields. Unknown light data
+  leaves the lamp unavailable without breaking the humidifier's other entities.
+- Use allowlisted partial `setLightStatus` commands so unrequested preset
+  brightness and temperature are not overwritten with potentially stale readings.
+- Confirm requested light values with bounded status reads, without resending
+  commands or publishing an assumed state. Enforce read-only mode on light writes.
+- Test both preset mappings, brightness round trips, limits, unsupported fields,
+  missing state and delayed confirmation separately from live device evidence.
+
 ## 0.1.4 — 2026-10-04
 
 - Use Home Assistant's standard ordered-speed conversion in both directions:

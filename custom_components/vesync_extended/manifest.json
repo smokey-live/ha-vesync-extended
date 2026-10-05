@@ -1,7 +1,7 @@
 {
   "domain": "vesync_extended",
   "name": "VeSync Extended",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "codeowners": [
     "@smokey-live"
   ],

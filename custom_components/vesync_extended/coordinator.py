@@ -15,6 +15,25 @@ from .const import CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL, DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
+def control_confirmed(state, action, value):
+    """Compare only settings requested by a display or night-light command."""
+    if not state.available:
+        return False
+    if action == "display":
+        return state.display is value
+    if state.night_light is not value["on"]:
+        return False
+    if "level" in value and state.light_level != value["level"]:
+        return False
+    if "kelvin" in value and state.light_kelvin != value["kelvin"]:
+        return False
+    if "brightness" in value:
+        actual = state.light_brightness if value["level"] == 1 else state.light_brightness_level2
+        if actual != value["brightness"]:
+            return False
+    return True
+
+
 class VeSyncExtendedCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
     """Keep failures local to an individual device whenever possible."""
 
@@ -65,17 +84,18 @@ class VeSyncExtendedCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
         try:
             await self.client.command(device, action, value)
             state = await self.client.get_state(device)
-            if action == "display":
+            if action in {"display", "light"}:
                 # Acknowledgments can precede the device's updated cloud status.
                 # Read again without resending the setting command.
                 for delay in (2, 4, 6):
-                    if state.available and state.display is value:
+                    if control_confirmed(state, action, value):
                         break
                     await asyncio.sleep(delay)
                     state = await self.client.get_state(device)
-                if not state.available or state.display is not value:
+                if not control_confirmed(state, action, value):
                     self.async_set_updated_data({**self.data, device.cid: state})
-                    raise HomeAssistantError("Device did not confirm the requested display setting")
+                    name = "display" if action == "display" else "night-light"
+                    raise HomeAssistantError(f"Device did not confirm the requested {name} setting")
         except AuthenticationError as err:
             raise ConfigEntryAuthFailed("VeSync session expired") from err
         except (ApiError, ValueError, TimeoutError) as err:

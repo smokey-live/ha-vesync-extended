@@ -38,6 +38,35 @@ evidence separately below after testing the owned devices.
 
 ## Device results
 
+### Night-light command investigation — 2026-10-04
+
+Read-only status on one `LUH-N451S-WUS` returned the nested `nightLight` fields
+listed in the protocol notes. The initial app and API values agreed: light on,
+L1 selected, L1 brightness 50%, L2 brightness 100% and white temperature 3000 K.
+The official app's sliders established 1–100% brightness and 1700–5500 K white
+temperature, in 100 K steps. This range differs from the Sprout source report.
+
+Direct candidate `setLightStatus` commands physically turned the night light
+off, then on at higher brightness, as confirmed by the owner. The app showed
+100% and 3500 K for the combined on/brightness/temperature command. A full
+candidate payload selected L2 and changed its saved brightness to 75%; the app
+highlighted L2 and showed 75%, with L1 retained at 100% and white at 3000 K.
+The app was also used to inspect the slider limits. These observations do not
+independently verify physical white-temperature accuracy.
+
+A smaller command containing only `nightLightSwitch: 0` and `colorMode: white`
+was accepted and physically turned the light off, as confirmed by the owner.
+This verifies the partial off payload, without resending brightness or temperature.
+Immediate and subsequent status reads still returned earlier light settings.
+Command acknowledgment, app indication and physical observation are recorded
+separately from cloud-state confirmation. No purifier received a setting command
+during this light investigation. Home Assistant read-only mode was disabled at
+the owner's request and will remain disabled after installation.
+
+The initial light code passes 81 synthetic protocol tests and local Ruff checks.
+Home Assistant runtime validation, installation, partial on/brightness/temperature
+tests and final restoration are pending at this checkpoint.
+
 ### Power tests — 2026-10-04
 
 With water present in the humidifier, Home Assistant sent explicit power-off

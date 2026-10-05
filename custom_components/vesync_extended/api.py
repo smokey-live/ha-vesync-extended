@@ -24,6 +24,8 @@ from .const import (
     HUMIDIFIER_MODELS,
     HUMIDIFIER_MODES,
     HUMIDIFIER_STATUS_MODES,
+    MAX_LIGHT_KELVIN,
+    MIN_LIGHT_KELVIN,
     PURIFIER_MODELS,
     PURIFIER_MODES,
     PURIFIER_STATUS_MODES,
@@ -96,6 +98,11 @@ class DeviceState:
     filter_life: int | None = None
     display: bool | None = None
     child_lock: bool | None = None
+    night_light: bool | None = None
+    light_brightness: int | None = None
+    light_brightness_level2: int | None = None
+    light_level: int | None = None
+    light_kelvin: int | None = None
     error_code: int | None = None
     error_reason: str | None = None
     # Field names are useful when extending support, without exposing identifiers.
@@ -147,6 +154,17 @@ def parse_state(device: Device, data: dict[str, Any]) -> DeviceState:
         state.mist_level = _integer(data.get("virtualLevel"), 0, 9)
         if state.humidity is None or state.target_humidity is None:
             raise ApiError("Unsupported humidifier status schema")
+        # NeoClassic's tunable-white lamp has two stored brightness presets.
+        # Malformed/missing light fields do not invalidate humidification status.
+        light = data.get("nightLight")
+        if isinstance(light, dict):
+            state.night_light = _switch(light.get("nightLightSwitch"))
+            state.light_brightness = _integer(light.get("brightness"), 1, 100)
+            state.light_brightness_level2 = _integer(light.get("brightnessLevel2"), 1, 100)
+            state.light_level = _integer(light.get("nightLightLevel"), 1, 2)
+            state.light_kelvin = _integer(
+                light.get("colorTemperature"), MIN_LIGHT_KELVIN, MAX_LIGHT_KELVIN
+            )
     return state
 
 
@@ -154,6 +172,34 @@ def command_payload(device: Device, action: str, value: Any) -> tuple[str, dict]
     """Restrict all writes to understood fields, values, and exact device models."""
     if device.model not in PURIFIER_MODELS | HUMIDIFIER_MODELS:
         raise ValueError("Unsupported device model")
+    if action == "light" and not device.is_purifier:
+        allowed = {"on", "brightness", "level", "kelvin"}
+        if not isinstance(value, dict) or set(value) - allowed:
+            raise ValueError("Unsupported light settings")
+        if not isinstance(value.get("on"), bool):
+            raise ValueError("Light power must be a boolean")
+        data = {"nightLightSwitch": int(value["on"]), "colorMode": "white"}
+        if "level" in value:
+            if type(value["level"]) is not int or value["level"] not in (1, 2):
+                raise ValueError("Light preset must be 1 or 2")
+            data["nightLightLevel"] = value["level"]
+        if "brightness" in value:
+            if type(value["brightness"]) is not int or not 1 <= value["brightness"] <= 100:
+                raise ValueError("Light brightness must be an integer from 1 to 100")
+            if "level" not in value:
+                raise ValueError("A brightness change needs a known light preset")
+            key = "brightness" if value["level"] == 1 else "brightnessLevel2"
+            data[key] = value["brightness"]
+        if "kelvin" in value:
+            kelvin = value["kelvin"]
+            if (
+                type(kelvin) is not int
+                or not MIN_LIGHT_KELVIN <= kelvin <= MAX_LIGHT_KELVIN
+                or kelvin % 100
+            ):
+                raise ValueError("Light temperature must be 1700..5500 K in 100 K steps")
+            data["colorTemperature"] = kelvin
+        return "setLightStatus", data
     if action in {"power", "display", "child_lock"}:
         if not isinstance(value, bool):
             raise ValueError("Switch value must be a boolean")

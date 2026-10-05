@@ -6,7 +6,7 @@ from dataclasses import asdict
 async def async_get_config_entry_diagnostics(hass, entry):
     coordinator = entry.runtime_data
     return {
-        "version": "0.1.4",
+        "version": "0.1.5",
         "read_only": coordinator.client.read_only,
         "devices": [
             {"model": device.model, "state": asdict(coordinator.data[cid])}

@@ -71,6 +71,41 @@ The Homebridge client uses POST for reads and PUT for writes. The initial protot
 follows that behavior for the humidifier; purifier requests follow pyvesync's POST
 behavior. Both transport and device response codes are checked.
 
+### NeoClassic tunable-white night light — 0.1.5
+
+This model returns a nested `nightLight` object with `nightLightSwitch`,
+`brightness`, `brightnessLevel2`, `nightLightLevel` and `colorTemperature`.
+Its official app exposes two brightness presets, L1 and L2, a 1–100% slider,
+and a white-temperature slider with endpoints 1700 and 5500 K in 100 K steps.
+The integration reads only these fields, independently of humidifier power.
+Invalid light fields remain unknown and do not invalidate other device readings.
+
+A starting point for the newer command shape was a contributor's intercepted
+[Sprout command report](https://github.com/orgs/home-assistant/discussions/901)
+in the Home Assistant discussion (inspected 2026-10-04). That report concerns a
+different model and does not establish NeoClassic support. Its range must not be
+copied to this model. Candidate commands were then tested on the exact
+`LUH-N451S-WUS`; see [validation](VALIDATION.md) for what each observation confirms.
+Homebridge's older snake_case brightness method and RGB `rgbNightLight` parser
+do not match the light schema observed on this NeoClassic unit.
+
+| Requested light setting | Method | Data |
+| --- | --- | --- |
+| On/off | `setLightStatus` | `nightLightSwitch: 0/1`, `colorMode: white` |
+| Select L1/L2 | `setLightStatus` | Same switch/color fields, `nightLightLevel: 1/2` |
+| L1 brightness | `setLightStatus` | Same switch/color fields, `nightLightLevel: 1`, `brightness: 1..100` |
+| L2 brightness | `setLightStatus` | Same switch/color fields, `nightLightLevel: 2`, `brightnessLevel2: 1..100` |
+| White temperature | `setLightStatus` | Same switch/color fields, `colorTemperature: 1700..5500` in 100 K steps |
+
+These fields may be combined in one command. Only requested settings are sent.
+On/off never copies brightness or temperature from an older status response.
+Brightness requires a known or explicitly selected preset and leaves the other
+preset unchanged. Home Assistant's effect selector represents L1/L2; this is not
+an RGB or animated light effect. Temperature requests are rounded to 100 K.
+Status confirmation compares only the requested values, with the same bounded
+read retries as display control. A stale response can report a confirmation
+failure after the physical lamp has already changed; commands are not resent.
+
 Homebridge's profile reports nine virtual mist levels. Its original
 [device request](https://github.com/pschroeder89/homebridge-levoit-humidifiers/issues/109)
 reports five mist levels. These may represent distinct physical and virtual scales;
