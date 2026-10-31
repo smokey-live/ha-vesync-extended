@@ -65,7 +65,7 @@ This differs from the older OasisMist snake_case responses.
 | Power | `setSwitch` | `powerSwitch: 0/1`, `id: 0` |
 | Target humidity | `setTargetHumidity` | `targetHumidity: 30..80`, `id: 0` |
 | Mode | `setHumidityMode` | `workMode: manual/auto/sleep` |
-| Display | `setDisplay` | `screenSwitch: 0/1`, `id: 0` |
+| Display | `setDisplay` | `screenSwitch: 0/1`, `configModule`, `deviceId` |
 
 The Homebridge client uses POST for reads and PUT for writes. The initial prototype
 follows that behavior for the humidifier; purifier requests follow pyvesync's POST
@@ -91,10 +91,35 @@ do not match the light schema observed on this NeoClassic unit.
 
 | Requested light setting | Method | Data |
 | --- | --- | --- |
-| On/off | `setLightStatus` | `nightLightSwitch: 0/1`, `colorMode: white` |
-| L1 brightness | `setLightStatus` | Same switch/color fields, `nightLightLevel: 1`, `brightness: 1..100` |
-| L2 brightness | `setLightStatus` | Same switch/color fields, `nightLightLevel: 2`, `brightnessLevel2: 1..100` |
-| White temperature | `setLightStatus` | Same switch/color fields, `colorTemperature: 1700..5500` in 100 K steps |
+| On/off only | `setLampSwitch` | `lampSwitch: 0/1`, `configModule`, `deviceId` |
+| L1 brightness | `setLightStatus` | `nightLightSwitch`, identifiers, `nightLightLevel: 1`, `brightness: 1..100` |
+| L2 brightness | `setLightStatus` | `nightLightSwitch`, identifiers, `nightLightLevel: 2`, `brightnessLevel2: 1..100` |
+| White temperature | `setLightStatus` | `nightLightSwitch`, identifiers, `colorTemperature: 1700..5500` in 100 K steps |
+
+### Current Android request-model evidence — 2026-10-31
+
+The installed VeSync Android 5.9.90 APK was pulled from the owner's connected
+phone without modifying the app. Its base APK SHA-256 is
+`87d2a3d3249a9ca16866d9cfcb97527d34e00caaac972c6567ec3707e972dabf`.
+Focused decompilation of `classes14.dex` observed these Kotlin serialization
+models in the shipped artifact:
+
+- `AirHumSetDisplayReq`: required `screenSwitch`, `configModule`, `deviceId`.
+- `AirHumSetLightStatusReq`: optional `brightness`, `colorTemperature`,
+  `nightLightSwitch`, `nightLightLevel`, `brightnessLevel2`, followed by required
+  `configModule`, `deviceId`.
+
+The display model has no `id` field. The light model has no `colorMode` field.
+This is direct static evidence for the serialized request fields. Using these
+models for NeoClassic command data is an inference from the app's humidifier
+request types; live Home Assistant acceptance and physical behavior must still
+be recorded separately after installing the change.
+
+The app also ships `AirHumSetLampSwitchReq`, `AirHumSetPowerSwitchReq` and
+`AirHumSetHumidityModeReq`. Their required fields respectively include
+`lampSwitch`, `powerSwitch`, or `workMode`, followed by `configModule` and
+`deviceId`. Pure lamp on/off now uses the dedicated lamp-switch request; brightness
+and white-temperature changes continue to use `setLightStatus`.
 
 These fields may be combined in one command. Only requested settings are sent.
 On/off never copies brightness or temperature from an older status response.

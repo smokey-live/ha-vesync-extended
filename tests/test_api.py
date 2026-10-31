@@ -79,6 +79,27 @@ def test_tunable_white_light_has_two_independent_brightness_presets():
     assert "ignored" not in repr(state)
 
 
+def test_top_level_lamp_switch_is_authoritative_for_power():
+    state = parse_state(
+        HUMIDIFIER,
+        {
+            "powerSwitch": 1,
+            "workMode": "manual",
+            "humidity": 50,
+            "targetHumidity": 60,
+            "lampSwitch": 0,
+            "nightLight": {
+                "nightLightSwitch": 1,
+                "brightness": 25,
+                "brightnessLevel2": 75,
+                "nightLightLevel": 1,
+                "colorTemperature": 3500,
+            },
+        },
+    )
+    assert state.night_light is False
+
+
 @pytest.mark.parametrize("light", [None, [], "on", {}, {"nightLightSwitch": "1"}])
 def test_unknown_light_schema_does_not_disable_humidification(light):
     state = parse_state(
@@ -120,33 +141,82 @@ def test_light_rejects_invalid_optional_values_without_guessing():
 @pytest.mark.parametrize(
     "settings,expected",
     [
-        ({"on": False}, {"nightLightSwitch": 0, "colorMode": "white"}),
-        ({"on": True}, {"nightLightSwitch": 1, "colorMode": "white"}),
+        (
+            {"on": False},
+            (
+                "setLampSwitch",
+                {
+                    "lampSwitch": 0,
+                    "configModule": HUMIDIFIER.config_module,
+                    "deviceId": HUMIDIFIER.cid,
+                },
+            ),
+        ),
+        (
+            {"on": True},
+            (
+                "setLampSwitch",
+                {
+                    "lampSwitch": 1,
+                    "configModule": HUMIDIFIER.config_module,
+                    "deviceId": HUMIDIFIER.cid,
+                },
+            ),
+        ),
         (
             {"on": True, "level": 1, "brightness": 25},
-            {"nightLightSwitch": 1, "colorMode": "white", "nightLightLevel": 1, "brightness": 25},
+            (
+                "setLightStatus",
+                {
+                    "nightLightSwitch": 1,
+                    "configModule": HUMIDIFIER.config_module,
+                    "deviceId": HUMIDIFIER.cid,
+                    "nightLightLevel": 1,
+                    "brightness": 25,
+                },
+            ),
         ),
         (
             {"on": True, "level": 2, "brightness": 75},
-            {
-                "nightLightSwitch": 1,
-                "colorMode": "white",
-                "nightLightLevel": 2,
-                "brightnessLevel2": 75,
-            },
+            (
+                "setLightStatus",
+                {
+                    "nightLightSwitch": 1,
+                    "configModule": HUMIDIFIER.config_module,
+                    "deviceId": HUMIDIFIER.cid,
+                    "nightLightLevel": 2,
+                    "brightnessLevel2": 75,
+                },
+            ),
         ),
         (
             {"on": True, "kelvin": 1700},
-            {"nightLightSwitch": 1, "colorMode": "white", "colorTemperature": 1700},
+            (
+                "setLightStatus",
+                {
+                    "nightLightSwitch": 1,
+                    "configModule": HUMIDIFIER.config_module,
+                    "deviceId": HUMIDIFIER.cid,
+                    "colorTemperature": 1700,
+                },
+            ),
         ),
         (
             {"on": True, "kelvin": 5500},
-            {"nightLightSwitch": 1, "colorMode": "white", "colorTemperature": 5500},
+            (
+                "setLightStatus",
+                {
+                    "nightLightSwitch": 1,
+                    "configModule": HUMIDIFIER.config_module,
+                    "deviceId": HUMIDIFIER.cid,
+                    "colorTemperature": 5500,
+                },
+            ),
         ),
     ],
 )
 def test_light_command_changes_only_requested_settings(settings, expected):
-    assert command_payload(HUMIDIFIER, "light", settings) == ("setLightStatus", expected)
+    assert command_payload(HUMIDIFIER, "light", settings) == expected
     with pytest.raises(ValueError):
         command_payload(PURIFIER, "light", settings)
 
@@ -216,7 +286,19 @@ def test_rejects_incompatible_humidifier_schema(data):
     "device,action,value,expected",
     [
         (PURIFIER, "power", True, ("setSwitch", {"powerSwitch": 1, "switchIdx": 0})),
-        (HUMIDIFIER, "power", False, ("setSwitch", {"powerSwitch": 0, "id": 0})),
+        (
+            HUMIDIFIER,
+            "power",
+            False,
+            (
+                "setSwitch",
+                {
+                    "powerSwitch": 0,
+                    "configModule": HUMIDIFIER.config_module,
+                    "deviceId": HUMIDIFIER.cid,
+                },
+            ),
+        ),
         (
             PURIFIER,
             "speed",
@@ -224,10 +306,34 @@ def test_rejects_incompatible_humidifier_schema(data):
             ("setLevel", {"levelIdx": 0, "manualSpeedLevel": 3, "levelType": "wind"}),
         ),
         (HUMIDIFIER, "humidity", 40, ("setTargetHumidity", {"targetHumidity": 40, "id": 0})),
-        (HUMIDIFIER, "mode", "sleep", ("setHumidityMode", {"workMode": "sleep"})),
+        (
+            HUMIDIFIER,
+            "mode",
+            "sleep",
+            (
+                "setHumidityMode",
+                {
+                    "workMode": "sleep",
+                    "configModule": HUMIDIFIER.config_module,
+                    "deviceId": HUMIDIFIER.cid,
+                },
+            ),
+        ),
         (PURIFIER, "mode", "pet", ("setPurifierMode", {"workMode": "pet"})),
         (PURIFIER, "display", True, ("setDisplay", {"screenSwitch": 1})),
-        (HUMIDIFIER, "display", False, ("setDisplay", {"screenSwitch": 0, "id": 0})),
+        (
+            HUMIDIFIER,
+            "display",
+            False,
+            (
+                "setDisplay",
+                {
+                    "screenSwitch": 0,
+                    "configModule": HUMIDIFIER.config_module,
+                    "deviceId": HUMIDIFIER.cid,
+                },
+            ),
+        ),
     ],
 )
 def test_command_fields_match_each_device_family(device, action, value, expected):

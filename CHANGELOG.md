@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+- Match the VeSync Android 5.9.90 request models for NeoClassic 450S display
+  and night-light writes. Include `configModule` and `deviceId` in command data,
+  remove the humidifier display `id` field, and remove the older light
+  `colorMode` field.
+- Add protocol fixtures for the corrected exact-model payloads. Static APK
+  evidence is recorded separately from pending live Home Assistant validation.
+- Preserve safe VeSync error text and numeric response codes in control errors,
+  while continuing to omit payloads, credentials and device identifiers.
+- Explain and block NeoClassic display writes while the humidifier is in Sleep
+  mode, where the device rejects the command and controls its own display.
+- Use the app's dedicated `setLampSwitch` request for lamp-only on/off changes,
+  and include the current app request identifiers in humidifier power and mode
+  writes.
+- Keep acknowledged settings pending for up to three minutes instead of replacing
+  them immediately with VeSync's stale read-back or raising a false confirmation
+  error. Fresh matching cloud state clears the pending value early.
+
 ## 0.1.5 — 2026-10-04
 
 - Add an independent NeoClassic 450S Night light entity for on/off, brightness,

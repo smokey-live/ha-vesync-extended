@@ -282,47 +282,53 @@ async def main():
     changed_display = DeviceState(available=True, display=True, power=True, mode="manual")
     writer = SimpleNamespace(
         command=AsyncMock(),
-        get_state=AsyncMock(side_effect=[original_display, changed_display]),
+        get_state=AsyncMock(return_value=original_display),
+        devices={device.cid: device},
     )
     poller.client = writer
     poller.async_set_updated_data({device.cid: original_display})
-    with patch("custom_components.vesync_extended.coordinator.asyncio.sleep", AsyncMock()):
-        await poller.async_control(device, "display", True)
+    await poller.async_control(device, "display", True)
     writer.command.assert_awaited_once_with(device, "display", True)
-    assert writer.get_state.await_count == 2 and poller.data[device.cid].display is True
+    writer.get_state.assert_not_awaited()
+    assert poller.data[device.cid].display is True
+
+    # A stale normal poll must not roll an acknowledged setting back.
+    states = await poller._async_update_data()
+    assert states[device.cid].display is True
+    assert (device.cid, "display") in poller._pending
+
+    # Matching cloud state clears the pending override early.
+    writer.get_state = AsyncMock(return_value=changed_display)
+    states = await poller._async_update_data()
+    assert states[device.cid].display is True
+    assert (device.cid, "display") not in poller._pending
 
     writer.command.reset_mock()
-    writer.get_state = AsyncMock(return_value=original_display)
-    with patch("custom_components.vesync_extended.coordinator.asyncio.sleep", AsyncMock()):
-        try:
-            await poller.async_control(device, "display", True)
-        except HomeAssistantError as err:
-            assert "did not confirm" in str(err)
-        else:
-            raise AssertionError("Unchanged display was reported as a successful command")
-    writer.command.assert_awaited_once()
-    assert writer.get_state.await_count == 4 and poller.data[device.cid].display is False
+    sleeping = DeviceState(available=True, display=False, power=True, mode="sleep")
+    poller.async_set_updated_data({humidifier.cid: sleeping})
+    try:
+        await poller.async_control(humidifier, "display", True)
+    except HomeAssistantError as err:
+        assert "Sleep mode" in str(err)
+    else:
+        raise AssertionError("Sleep-mode display write was sent")
+    writer.command.assert_not_awaited()
 
     original_light = DeviceState(available=True, night_light=False, light_kelvin=3000)
     changed_light = DeviceState(available=True, night_light=True, light_kelvin=3000)
     writer.command.reset_mock()
-    writer.get_state = AsyncMock(side_effect=[original_light, changed_light])
+    writer.get_state = AsyncMock(return_value=original_light)
+    writer.devices = {humidifier.cid: humidifier}
     poller.async_set_updated_data({humidifier.cid: original_light})
-    with patch("custom_components.vesync_extended.coordinator.asyncio.sleep", AsyncMock()):
-        await poller.async_control(humidifier, "light", {"on": True})
+    await poller.async_control(humidifier, "light", {"on": True})
     writer.command.assert_awaited_once_with(humidifier, "light", {"on": True})
-    assert writer.get_state.await_count == 2 and poller.data[humidifier.cid].night_light is True
-    writer.command.reset_mock()
+    assert poller.data[humidifier.cid].night_light is True
+    states = await poller._async_update_data()
+    assert states[humidifier.cid].night_light is True
     writer.get_state = AsyncMock(return_value=changed_light)
-    with patch("custom_components.vesync_extended.coordinator.asyncio.sleep", AsyncMock()):
-        try:
-            await poller.async_control(humidifier, "light", {"on": True, "kelvin": 3500})
-        except HomeAssistantError as err:
-            assert "did not confirm" in str(err)
-        else:
-            raise AssertionError("Unchanged light temperature was reported as confirmed")
-    writer.command.assert_awaited_once()
-    assert writer.get_state.await_count == 4
+    states = await poller._async_update_data()
+    assert states[humidifier.cid].night_light is True
+    assert (humidifier.cid, "light") not in poller._pending
 
     poller.async_set_updated_data({device.cid: original_display})
     writer.command = AsyncMock(side_effect=ReadOnlyError("Controls disabled"))
@@ -336,7 +342,7 @@ async def main():
     writer.get_state.assert_not_awaited()
     print(
         "HA imports, saved-account privacy, entity state, read-only, "
-        "offline isolation, reauth, light scales/presets, delayed write confirmation passed"
+        "offline isolation, reauth, light scales/presets, pending cloud writes passed"
     )
 
 

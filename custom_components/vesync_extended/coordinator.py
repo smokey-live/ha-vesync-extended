@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
+from copy import copy
 from datetime import timedelta
+from time import monotonic
 
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -13,6 +14,7 @@ from .api import ApiError, AuthenticationError, DeviceOffline, DeviceState
 from .const import CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+_PENDING_SECONDS = 180
 
 
 def control_confirmed(state, action, value):
@@ -34,6 +36,50 @@ def control_confirmed(state, action, value):
     return True
 
 
+def apply_requested_state(state, action, value):
+    """Apply an acknowledged request while VeSync's status endpoint catches up."""
+    state = copy(state)
+    if action == "power":
+        state.power = value
+    elif action == "mode":
+        state.mode = value
+    elif action == "speed":
+        state.speed = value
+    elif action == "humidity":
+        state.target_humidity = value
+    elif action == "display":
+        state.display = value
+    elif action == "child_lock":
+        state.child_lock = value
+    elif action == "light":
+        state.night_light = value["on"]
+        if "level" in value:
+            state.light_level = value["level"]
+        if "brightness" in value:
+            key = "light_brightness" if value["level"] == 1 else "light_brightness_level2"
+            setattr(state, key, value["brightness"])
+        if "kelvin" in value:
+            state.light_kelvin = value["kelvin"]
+    return state
+
+
+def request_confirmed(state, action, value):
+    """Return whether a fresh cloud state contains an acknowledged request."""
+    if action in {"display", "light"}:
+        return control_confirmed(state, action, value)
+    if action == "power":
+        return state.power is value
+    if action == "mode":
+        return state.mode == value or (value == "auto" and state.mode == "autoPro")
+    if action == "speed":
+        return state.speed == value
+    if action == "humidity":
+        return state.target_humidity == value
+    if action == "child_lock":
+        return state.child_lock is value
+    return True
+
+
 class VeSyncExtendedCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
     """Keep failures local to an individual device whenever possible."""
 
@@ -52,6 +98,19 @@ class VeSyncExtendedCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
             always_update=False,
         )
         self.client = client
+        self._pending = {}
+
+    def _merge_pending(self, cid, state):
+        now = monotonic()
+        for key, (value, expires) in list(self._pending.items()):
+            pending_cid, action = key
+            if pending_cid != cid:
+                continue
+            if request_confirmed(state, action, value) or now >= expires:
+                self._pending.pop(key, None)
+            else:
+                state = apply_requested_state(state, action, value)
+        return state
 
     async def _async_setup(self):
         try:
@@ -68,7 +127,8 @@ class VeSyncExtendedCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
         states = {}
         for cid, device in self.client.devices.items():
             try:
-                states[cid] = await self.client.get_state(device)
+                state = await self.client.get_state(device)
+                states[cid] = self._merge_pending(cid, state)
             except AuthenticationError as err:
                 raise ConfigEntryAuthFailed("VeSync session expired") from err
             except (DeviceOffline, ApiError) as err:
@@ -79,27 +139,22 @@ class VeSyncExtendedCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
 
     async def async_control(self, device, action, value):
         """Refresh the actual state after a successful command."""
-        if not self.data.get(device.cid, DeviceState()).available:
+        current = self.data.get(device.cid, DeviceState())
+        if not current.available:
             raise HomeAssistantError("This device has no validated status response")
+        if action == "display" and not device.is_purifier and current.mode == "sleep":
+            raise HomeAssistantError(
+                "The humidifier controls its display in Sleep mode; change mode first"
+            )
         try:
             await self.client.command(device, action, value)
-            state = await self.client.get_state(device)
-            if action in {"display", "light"}:
-                # Acknowledgments can precede the device's updated cloud status.
-                # Read again without resending the setting command.
-                for delay in (2, 4, 6):
-                    if control_confirmed(state, action, value):
-                        break
-                    await asyncio.sleep(delay)
-                    state = await self.client.get_state(device)
-                if not control_confirmed(state, action, value):
-                    self.async_set_updated_data({**self.data, device.cid: state})
-                    name = "display" if action == "display" else "night-light"
-                    raise HomeAssistantError(f"Device did not confirm the requested {name} setting")
         except AuthenticationError as err:
             raise ConfigEntryAuthFailed("VeSync session expired") from err
         except (ApiError, ValueError, TimeoutError) as err:
-            raise HomeAssistantError(
-                "VeSync control failed; check read-only mode and connectivity"
-            ) from err
+            detail = str(err) or type(err).__name__
+            if isinstance(err, ApiError) and err.code is not None:
+                detail = f"{detail} (code {err.code})"
+            raise HomeAssistantError(f"VeSync control failed: {detail}") from err
+        self._pending[(device.cid, action)] = (value, monotonic() + _PENDING_SECONDS)
+        state = apply_requested_state(current, action, value)
         self.async_set_updated_data({**self.data, device.cid: state})

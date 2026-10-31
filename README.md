@@ -21,13 +21,18 @@ edits the preset reported active by the cloud, while `brightness_l1`, `brightnes
 had no physical effect, so a preset selector is not offered. Light control is
 independent of humidification.
 Live Home Assistant brightness/temperature commands changed the lamp and the
-app, but cloud readings retained earlier values beyond the short confirmation
-window. Home Assistant can therefore report a confirmation error after a
-successful physical change. Check the lamp/app before repeating a command.
+app, but cloud readings retained earlier values after successful writes. The
+unreleased source keeps an acknowledged setting pending for up to three minutes
+while the status endpoint catches up, avoiding false action errors and temporary
+UI rollbacks.
 
 Version 0.1.4 fixes the three-speed percentage conversion using Home Assistant's
 standard 33%, 66% and 100% levels. Initial display tests also found delayed cloud
 status and a command acknowledgment issue corrected in 0.1.3.
+
+The unreleased source matches the display and night-light request fields
+serialized by VeSync Android 5.9.90. This corrects the NeoClassic command data,
+but the new build still requires live validation before it is released.
 
 | Product | VeSync cloud identifier | Readings and candidate controls |
 | --- | --- | --- |
@@ -118,15 +123,17 @@ Record behavior changes in [CHANGELOG.md](CHANGELOG.md).
 - The integration uses the VeSync cloud API; it does not provide local-only control.
 - An offline or incompatible device affects its own entities. A successful cloud
   response with an inner device error is treated as a failure.
-- A display command can be accepted and take effect before the cloud reports its
-  new state. Version 0.1.3 checks immediately and after 2, 4 and 6 seconds. If it
-  reports that the device did not confirm the setting, check the physical device
-  and wait for normal polling before repeating the command. Live tests observed
-  delayed readings beyond this confirmation window. An acknowledgment alone is
-  not proof of the final device state.
-- Night-light commands use the same bounded confirmation reads. The lamp's state
-  and sliders show actual cloud readings, which can lag behind a physical change.
-  Allow polling to catch up before making another preset/brightness adjustment.
+- A display or light command can be accepted and take effect before the cloud
+  reports its new state. The unreleased source keeps the acknowledged setting in
+  Home Assistant for up to three minutes while normal polling waits for VeSync's
+  delayed status. An acknowledgment still does not independently prove physical
+  behavior.
+- The NeoClassic controls its own display in Sleep mode and rejects explicit
+  display writes. Change to Manual or Auto before using the Display switch; the
+  integration reports this restriction without sending a rejected command.
+- Night-light state and sliders can lag behind a physical change in VeSync's
+  status response. Allow polling to catch up before making another preset or
+  brightness adjustment.
   An on/off request leaves saved brightness and temperature unchanged; a brightness
   request changes only its specified preset. White temperature is rounded to the
   app's 100 K steps. RGB colors, transitions and blinking effects are not exposed.

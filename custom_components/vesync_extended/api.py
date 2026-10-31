@@ -158,7 +158,9 @@ def parse_state(device: Device, data: dict[str, Any]) -> DeviceState:
         # Malformed/missing light fields do not invalidate humidification status.
         light = data.get("nightLight")
         if isinstance(light, dict):
-            state.night_light = _switch(light.get("nightLightSwitch"))
+            state.night_light = _switch(data.get("lampSwitch"))
+            if state.night_light is None:
+                state.night_light = _switch(light.get("nightLightSwitch"))
             state.light_brightness = _integer(light.get("brightness"), 1, 100)
             state.light_brightness_level2 = _integer(light.get("brightnessLevel2"), 1, 100)
             state.light_level = _integer(light.get("nightLightLevel"), 1, 2)
@@ -178,7 +180,18 @@ def command_payload(device: Device, action: str, value: Any) -> tuple[str, dict]
             raise ValueError("Unsupported light settings")
         if not isinstance(value.get("on"), bool):
             raise ValueError("Light power must be a boolean")
-        data = {"nightLightSwitch": int(value["on"]), "colorMode": "white"}
+        identifiers = {
+            "configModule": device.config_module,
+            "deviceId": device.cid,
+        }
+        # The app uses a dedicated switch request when no brightness or white
+        # temperature value is changing.
+        if set(value) == {"on"}:
+            return "setLampSwitch", {"lampSwitch": int(value["on"]), **identifiers}
+        data = {
+            "nightLightSwitch": int(value["on"]),
+            **identifiers,
+        }
         if "level" in value:
             if type(value["level"]) is not int or value["level"] not in (1, 2):
                 raise ValueError("Light preset must be 1 or 2")
@@ -206,12 +219,21 @@ def command_payload(device: Device, action: str, value: Any) -> tuple[str, dict]
         if not isinstance(value, bool):
             raise ValueError("Switch value must be a boolean")
         if action == "power":
-            index = "switchIdx" if device.is_purifier else "id"
-            return "setSwitch", {"powerSwitch": int(value), index: 0}
+            if device.is_purifier:
+                return "setSwitch", {"powerSwitch": int(value), "switchIdx": 0}
+            return "setSwitch", {
+                "powerSwitch": int(value),
+                "configModule": device.config_module,
+                "deviceId": device.cid,
+            }
         if action == "display":
             data = {"screenSwitch": int(value)}
             if not device.is_purifier:
-                data["id"] = 0
+                # Match AirHumSetDisplayReq in the current VeSync Android app.
+                data |= {
+                    "configModule": device.config_module,
+                    "deviceId": device.cid,
+                }
             return "setDisplay", data
         if not device.is_purifier:
             raise ValueError("Humidifier child lock has not been verified")
@@ -223,8 +245,13 @@ def command_payload(device: Device, action: str, value: Any) -> tuple[str, dict]
         if device.is_purifier and value == "manual":
             # pyvesync enters manual mode using a speed command, not a mode write.
             return "setLevel", {"levelIdx": 0, "manualSpeedLevel": 1, "levelType": "wind"}
-        method = "setPurifierMode" if device.is_purifier else "setHumidityMode"
-        return method, {"workMode": value}
+        if device.is_purifier:
+            return "setPurifierMode", {"workMode": value}
+        return "setHumidityMode", {
+            "workMode": value,
+            "configModule": device.config_module,
+            "deviceId": device.cid,
+        }
     if action == "speed" and device.is_purifier:
         if _integer(value, 1, 3) is None:
             raise ValueError("Purifier speed must be 1, 2, or 3")

@@ -38,6 +38,45 @@ evidence separately below after testing the owned devices.
 
 ## Device results
 
+### Android request-model inspection — 2026-10-31
+
+The owner connected the phone over authorized ADB. The installed VeSync 5.9.90
+base APK and configuration splits were copied locally for read-only analysis.
+Focused decompilation of the shipped display and light request classes found the
+field sets recorded in the protocol notes. No app data was changed, no device
+command was sent during APK inspection, and no account or device identifier is
+recorded here.
+
+The integration payload builder and synthetic fixtures were updated to match
+those request models. All 83 protocol tests and Ruff checks passed locally. That
+established source consistency, not device acceptance, before the live checks below.
+
+The corrected `api.py` was then installed through the owner's authenticated
+File Editor ingress after verifying the existing file hash and saving a sibling
+backup. Home Assistant's configuration check passed and Core restarted normally.
+With the humidifier in Sleep mode, a display-on request was rejected with inner
+code `11018000`. After temporarily changing to Manual, the same corrected request
+received a successful acknowledgment but the bounded status reads retained
+display off. Display off completed and the original Sleep mode was restored.
+This separates the firmware's Sleep-mode restriction from the previously known
+cloud-reporting delay; physical display-on observation is still pending.
+
+In Manual mode, the corrected light-off request also received a successful
+acknowledgment while status remained on through the confirmation window. A light-on
+request then completed and the original on reading was retained before restoring
+Sleep. Physical off/on observation is still pending, so these acknowledgments do
+not by themselves prove the lamp changed.
+
+Subsequent dashboard testing showed why strict immediate confirmation was not
+usable: accepted display and lamp writes produced action errors and temporarily
+replaced correct UI state with stale status. A later normal poll reported the
+humidifier on, display on and lamp on. Mode writes without the app request
+identifiers were rejected with `11000000`; lamp-only writes through
+`setLightStatus` were rejected with `11017000`. The implementation now matches
+the dedicated app request models and holds acknowledged values pending for at
+most three minutes. Live physical verification of these revised commands remains
+separate from cloud acknowledgment.
+
 ### Night-light command investigation — 2026-10-04
 
 Read-only status on one `LUH-N451S-WUS` returned the nested `nightLight` fields
